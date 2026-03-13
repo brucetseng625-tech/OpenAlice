@@ -7,10 +7,11 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ConnectorCenter } from '../../connector-center.js'
+import type { SessionEntry } from '../../session.js'
 import {
   FakeProvider,
-  makeCapturingSession,
-  makeCapturingConnector,
+  MemorySessionStore,
+  MockConnector,
   makeAgentCenter,
   collectEvents,
   textEvent,
@@ -38,6 +39,16 @@ vi.mock('../../../ai-providers/log-tool-call.js', () => ({
   logToolCall: vi.fn(),
 }))
 
+// ==================== Helpers ====================
+
+function userEntries(entries: SessionEntry[]): SessionEntry[] {
+  return entries.filter(e => e.type === 'user')
+}
+
+function assistantEntries(entries: SessionEntry[]): SessionEntry[] {
+  return entries.filter(e => e.type === 'assistant')
+}
+
 // ==================== Tests ====================
 
 describe('End-to-end flows', () => {
@@ -53,7 +64,7 @@ describe('End-to-end flows', () => {
       doneEvent('AAPL is at $185'),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     const stream = ac.askWithSession('what is AAPL?', session)
     const events = await collectEvents(stream)
@@ -66,15 +77,16 @@ describe('End-to-end flows', () => {
 
     expect(result.text).toBe('AAPL is at $185')
 
-    const userWrites = session.writes.filter(w => w.method === 'appendUser')
-    const assistantWrites = session.writes.filter(w => w.method === 'appendAssistant')
+    const all = await session.readAll()
+    const users = userEntries(all)
+    const assistants = assistantEntries(all)
 
-    expect(userWrites.length).toBeGreaterThanOrEqual(2)
-    expect(assistantWrites.length).toBeGreaterThanOrEqual(2)
+    expect(users.length).toBeGreaterThanOrEqual(2)
+    expect(assistants.length).toBeGreaterThanOrEqual(2)
 
-    const finalWrite = assistantWrites[assistantWrites.length - 1]
-    expect(finalWrite.content).toEqual([{ type: 'text', text: 'AAPL is at $185' }])
-    expect(finalWrite.provider).toBe('vercel-ai')
+    const finalAssistant = assistants[assistants.length - 1]
+    expect(finalAssistant.message.content).toEqual([{ type: 'text', text: 'AAPL is at $185' }])
+    expect(finalAssistant.provider).toBe('vercel-ai')
   })
 
   it('D2: notification path — agent result delivered via connector.send', async () => {
@@ -83,12 +95,12 @@ describe('End-to-end flows', () => {
       doneEvent('market alert: AAPL up 5%'),
     ])
     const ac = makeAgentCenter(provider)
-    const heartbeatSession = makeCapturingSession()
+    const heartbeatSession = new MemorySessionStore()
 
     const result = await ac.askWithSession('check market', heartbeatSession)
 
     const cc = new ConnectorCenter()
-    const webConnector = makeCapturingConnector({ channel: 'web' })
+    const webConnector = new MockConnector({ channel: 'web' })
     cc.register(webConnector)
 
     await cc.notify(result.text, { media: result.media, source: 'heartbeat' })
@@ -98,8 +110,9 @@ describe('End-to-end flows', () => {
     expect(webConnector.calls[0].payload!.kind).toBe('notification')
     expect(webConnector.calls[0].payload!.source).toBe('heartbeat')
 
-    const hbAssistant = heartbeatSession.writes.filter(w => w.method === 'appendAssistant')
-    expect(hbAssistant.length).toBeGreaterThanOrEqual(1)
+    const all = await heartbeatSession.readAll()
+    const hbAssistants = assistantEntries(all)
+    expect(hbAssistants.length).toBeGreaterThanOrEqual(1)
   })
 
   it('D3: streaming notification path — askWithSession result streamed via connector.sendStream', async () => {
@@ -108,12 +121,12 @@ describe('End-to-end flows', () => {
       doneEvent('streaming notification'),
     ])
     const ac = makeAgentCenter(provider)
-    const cronSession = makeCapturingSession()
+    const cronSession = new MemorySessionStore()
 
     const stream = ac.askWithSession('run cron task', cronSession)
 
     const cc = new ConnectorCenter()
-    const webConnector = makeCapturingConnector({ channel: 'web', hasSendStream: true })
+    const webConnector = new MockConnector({ channel: 'web' })
     cc.register(webConnector)
 
     await cc.notifyStream(stream, { source: 'cron' })
@@ -122,9 +135,10 @@ describe('End-to-end flows', () => {
     expect(webConnector.calls[0].method).toBe('sendStream')
     expect(webConnector.calls[0].meta).toEqual({ kind: 'notification', source: 'cron' })
 
-    const cronAssistant = cronSession.writes.filter(w => w.method === 'appendAssistant')
-    const finalWrite = cronAssistant[cronAssistant.length - 1]
-    expect(finalWrite.content).toEqual([{ type: 'text', text: 'streaming notification' }])
+    const all = await cronSession.readAll()
+    const cronAssistants = assistantEntries(all)
+    const finalAssistant = cronAssistants[cronAssistants.length - 1]
+    expect(finalAssistant.message.content).toEqual([{ type: 'text', text: 'streaming notification' }])
   })
 
   it('D4: media flows end-to-end from provider through AgentCenter to connector', async () => {
@@ -133,13 +147,14 @@ describe('End-to-end flows', () => {
       doneEvent('chart ready', [{ type: 'image', path: '/tmp/chart.png' }]),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     const result = await ac.askWithSession('make chart', session)
 
-    const assistantWrites = session.writes.filter(w => w.method === 'appendAssistant')
-    const finalWrite = assistantWrites[assistantWrites.length - 1]
-    expect(finalWrite.content).toEqual([
+    const all = await session.readAll()
+    const assistants = assistantEntries(all)
+    const finalAssistant = assistants[assistants.length - 1]
+    expect(finalAssistant.message.content).toEqual([
       { type: 'text', text: 'chart ready' },
       { type: 'image', url: '/api/media/2026-03-13/ace-aim-air.png' },
     ])
@@ -147,7 +162,7 @@ describe('End-to-end flows', () => {
     expect(result.mediaUrls).toEqual(['/api/media/2026-03-13/ace-aim-air.png'])
 
     const cc = new ConnectorCenter()
-    const connector = makeCapturingConnector({ channel: 'web' })
+    const connector = new MockConnector({ channel: 'web' })
     cc.register(connector)
 
     await cc.notify(result.text, { media: result.media, source: 'heartbeat' })

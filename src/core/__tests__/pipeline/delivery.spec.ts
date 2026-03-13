@@ -4,13 +4,13 @@
  * Verifies notify/notifyStream/broadcast routing, sendStream delegation,
  * fallback to send, interaction tracking, and error resilience.
  */
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { StreamableResult, type ProviderEvent } from '../../ai-provider.js'
 import { ConnectorCenter } from '../../connector-center.js'
 import { createEventLog } from '../../event-log.js'
 import type { MediaAttachment } from '../../types.js'
 import {
-  makeCapturingConnector,
+  MockConnector,
   textEvent,
   doneEvent,
 } from './helpers.js'
@@ -43,7 +43,7 @@ describe('ConnectorCenter — delivery', () => {
 
   it('C1: notify() sends text with default kind=notification', async () => {
     const cc = new ConnectorCenter()
-    const connector = makeCapturingConnector({ channel: 'web' })
+    const connector = new MockConnector({ channel: 'web' })
     cc.register(connector)
 
     await cc.notify('hello')
@@ -60,7 +60,7 @@ describe('ConnectorCenter — delivery', () => {
 
   it('C2: notify() with media passes MediaAttachment[] through', async () => {
     const cc = new ConnectorCenter()
-    const connector = makeCapturingConnector({ channel: 'web' })
+    const connector = new MockConnector({ channel: 'web' })
     cc.register(connector)
 
     const media: MediaAttachment[] = [{ type: 'image', path: '/tmp/chart.png' }]
@@ -79,7 +79,7 @@ describe('ConnectorCenter — delivery', () => {
 
   it('C4: notifyStream() delegates to sendStream when available', async () => {
     const cc = new ConnectorCenter()
-    const connector = makeCapturingConnector({ channel: 'web', hasSendStream: true })
+    const connector = new MockConnector({ channel: 'web' })
     cc.register(connector)
 
     async function* gen(): AsyncGenerator<ProviderEvent> {
@@ -93,12 +93,13 @@ describe('ConnectorCenter — delivery', () => {
     expect(connector.calls).toHaveLength(1)
     expect(connector.calls[0].method).toBe('sendStream')
     expect(connector.calls[0].meta).toEqual({ kind: 'notification', source: 'cron' })
-    expect((connector.send as Mock).mock.calls).toHaveLength(0)
+    // No send calls — only sendStream
+    expect(connector.calls.filter(c => c.method === 'send')).toHaveLength(0)
   })
 
   it('C5: notifyStream() drains and falls back to send when no sendStream', async () => {
     const cc = new ConnectorCenter()
-    const connector = makeCapturingConnector({ channel: 'telegram', hasSendStream: false })
+    const connector = new MockConnector({ channel: 'telegram', sendStream: false })
     cc.register(connector)
 
     async function* gen(): AsyncGenerator<ProviderEvent> {
@@ -117,8 +118,8 @@ describe('ConnectorCenter — delivery', () => {
 
   it('C6: broadcast() only sends to push-capable connectors', async () => {
     const cc = new ConnectorCenter()
-    const pushable = makeCapturingConnector({ channel: 'web', push: true })
-    const pullOnly = makeCapturingConnector({ channel: 'mcp', push: false })
+    const pushable = new MockConnector({ channel: 'web', push: true })
+    const pullOnly = new MockConnector({ channel: 'mcp', push: false })
     cc.register(pushable)
     cc.register(pullOnly)
 
@@ -131,10 +132,17 @@ describe('ConnectorCenter — delivery', () => {
   it('C7: broadcast() continues despite individual send failures', async () => {
     const cc = new ConnectorCenter()
 
-    const failing = makeCapturingConnector({ channel: 'telegram', push: true })
-    ;(failing.send as Mock).mockRejectedValueOnce(new Error('network error'))
+    const failing = new MockConnector({ channel: 'telegram', push: true })
+    // Override send to simulate a network error
+    const originalSend = failing.send.bind(failing)
+    let callCount = 0
+    failing.send = async (payload) => {
+      callCount++
+      if (callCount === 1) throw new Error('network error')
+      return originalSend(payload)
+    }
 
-    const working = makeCapturingConnector({ channel: 'web', push: true })
+    const working = new MockConnector({ channel: 'web', push: true })
     cc.register(failing)
     cc.register(working)
 
@@ -149,8 +157,8 @@ describe('ConnectorCenter — delivery', () => {
 
   it('C8: resolveTarget defaults to first registered when no interaction', async () => {
     const cc = new ConnectorCenter()
-    const web = makeCapturingConnector({ channel: 'web' })
-    const telegram = makeCapturingConnector({ channel: 'telegram' })
+    const web = new MockConnector({ channel: 'web' })
+    const telegram = new MockConnector({ channel: 'telegram' })
     cc.register(web)
     cc.register(telegram)
 
@@ -164,8 +172,8 @@ describe('ConnectorCenter — delivery', () => {
     try {
       const cc = new ConnectorCenter(eventLog)
 
-      const web = makeCapturingConnector({ channel: 'web' })
-      const telegram = makeCapturingConnector({ channel: 'telegram' })
+      const web = new MockConnector({ channel: 'web' })
+      const telegram = new MockConnector({ channel: 'telegram' })
       cc.register(web)
       cc.register(telegram)
 
@@ -201,7 +209,7 @@ describe('ConnectorCenter — delivery', () => {
 
   it('C11: notify with explicit kind=message overrides default', async () => {
     const cc = new ConnectorCenter()
-    const connector = makeCapturingConnector({ channel: 'web' })
+    const connector = new MockConnector({ channel: 'web' })
     cc.register(connector)
 
     await cc.notify('user message', { kind: 'message', source: 'manual' })
@@ -212,7 +220,7 @@ describe('ConnectorCenter — delivery', () => {
 
   it('C12: unregister callback removes connector', async () => {
     const cc = new ConnectorCenter()
-    const connector = makeCapturingConnector({ channel: 'web' })
+    const connector = new MockConnector({ channel: 'web' })
     const unregister = cc.register(connector)
 
     await cc.notify('before')
@@ -227,8 +235,8 @@ describe('ConnectorCenter — delivery', () => {
 
   it('C13: re-register replaces existing connector for same channel', async () => {
     const cc = new ConnectorCenter()
-    const old = makeCapturingConnector({ channel: 'web' })
-    const replacement = makeCapturingConnector({ channel: 'web' })
+    const old = new MockConnector({ channel: 'web' })
+    const replacement = new MockConnector({ channel: 'web' })
 
     cc.register(old)
     cc.register(replacement)
@@ -241,8 +249,8 @@ describe('ConnectorCenter — delivery', () => {
 
   it('C14: broadcast with media and source passes all fields correctly', async () => {
     const cc = new ConnectorCenter()
-    const web = makeCapturingConnector({ channel: 'web', push: true })
-    const telegram = makeCapturingConnector({ channel: 'telegram', push: true })
+    const web = new MockConnector({ channel: 'web', push: true })
+    const telegram = new MockConnector({ channel: 'telegram', push: true })
     cc.register(web)
     cc.register(telegram)
 
@@ -264,7 +272,7 @@ describe('ConnectorCenter — delivery', () => {
 
   it('C15: notifyStream with kind=message passes through to sendStream meta', async () => {
     const cc = new ConnectorCenter()
-    const connector = makeCapturingConnector({ channel: 'web', hasSendStream: true })
+    const connector = new MockConnector({ channel: 'web' })
     cc.register(connector)
 
     async function* gen(): AsyncGenerator<ProviderEvent> {

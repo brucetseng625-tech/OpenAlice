@@ -1,11 +1,11 @@
 /**
  * Shared test infrastructure for message pipeline integration tests.
  *
- * FakeProvider, CapturingSession, CapturingConnector, event builders,
- * and helpers used across the pipeline-*.spec.ts files.
+ * FakeProvider, event builders, and helpers used across the pipeline-*.spec.ts
+ * files. Session and connector test doubles are imported from their respective
+ * modules (MemorySessionStore, MockConnector).
  */
 
-import { vi } from 'vitest'
 import { AgentCenter } from '../../agent-center.js'
 import {
   GenerateRouter,
@@ -16,10 +16,15 @@ import {
   type GenerateInput,
   type GenerateOpts,
 } from '../../ai-provider.js'
-import { type Connector, type SendPayload, type SendResult } from '../../connector-center.js'
 import { DEFAULT_COMPACTION_CONFIG } from '../../compaction.js'
-import type { SessionStore, SessionEntry, ContentBlock } from '../../session.js'
+import type { ContentBlock } from '../../session.js'
 import type { MediaAttachment } from '../../types.js'
+
+// Re-export test doubles for convenience
+export { MemorySessionStore } from '../../session.js'
+export type { SessionEntry, ContentBlock } from '../../session.js'
+export { MockConnector } from '../../../connectors/mock.js'
+export type { MockConnectorCall } from '../../../connectors/mock.js'
 
 // ==================== FakeProvider ====================
 
@@ -43,111 +48,6 @@ export class FakeProvider implements GenerateProvider {
   async *generate(_input: GenerateInput, _opts?: GenerateOpts): AsyncIterable<ProviderEvent> {
     for (const e of this.events) yield e
   }
-}
-
-// ==================== CapturingSession ====================
-
-/** Recorded session write operation. */
-export interface SessionWrite {
-  method: 'appendUser' | 'appendAssistant'
-  content: string | ContentBlock[]
-  provider?: string
-  metadata?: Record<string, unknown>
-}
-
-/** In-memory SessionStore that captures all writes. */
-export function makeCapturingSession(): SessionStore & { writes: SessionWrite[] } {
-  const writes: SessionWrite[] = []
-  const entries: SessionEntry[] = []
-
-  const session = {
-    id: 'test-session',
-    writes,
-    appendUser: vi.fn(async (content: string | ContentBlock[], provider?: string) => {
-      writes.push({ method: 'appendUser', content, provider })
-      const e: SessionEntry = {
-        type: 'user',
-        message: { role: 'user', content },
-        uuid: `u-${entries.length}`,
-        parentUuid: null,
-        sessionId: 'test-session',
-        timestamp: new Date().toISOString(),
-        provider: provider as SessionEntry['provider'],
-      }
-      entries.push(e)
-      return e
-    }),
-    appendAssistant: vi.fn(async (content: string | ContentBlock[], provider?: string, metadata?: Record<string, unknown>) => {
-      writes.push({ method: 'appendAssistant', content, provider, metadata })
-      const e: SessionEntry = {
-        type: 'assistant',
-        message: { role: 'assistant', content },
-        uuid: `a-${entries.length}`,
-        parentUuid: null,
-        sessionId: 'test-session',
-        timestamp: new Date().toISOString(),
-        provider: provider as SessionEntry['provider'],
-        metadata,
-      }
-      entries.push(e)
-      return e
-    }),
-    appendRaw: vi.fn(async () => {}),
-    readAll: vi.fn(async () => [...entries]),
-    readActive: vi.fn(async () => [...entries]),
-    restore: vi.fn(async () => {}),
-    exists: vi.fn(async () => true),
-  } as unknown as SessionStore & { writes: SessionWrite[] }
-
-  return session
-}
-
-// ==================== CapturingConnector ====================
-
-/** Captured connector call. */
-export interface ConnectorCall {
-  method: 'send' | 'sendStream'
-  payload?: SendPayload
-  stream?: StreamableResult
-  meta?: Pick<SendPayload, 'kind' | 'source'>
-}
-
-/** Create a capturing Connector mock. */
-export function makeCapturingConnector(opts?: {
-  channel?: string
-  push?: boolean
-  media?: boolean
-  hasSendStream?: boolean
-  sendResult?: SendResult
-}): Connector & { calls: ConnectorCall[] } {
-  const calls: ConnectorCall[] = []
-  const result = opts?.sendResult ?? { delivered: true }
-
-  const connector: Connector & { calls: ConnectorCall[] } = {
-    channel: opts?.channel ?? 'test',
-    to: 'default',
-    capabilities: {
-      push: opts?.push ?? true,
-      media: opts?.media ?? true,
-    },
-    calls,
-    send: vi.fn(async (payload: SendPayload) => {
-      calls.push({ method: 'send', payload })
-      return result
-    }),
-  }
-
-  if (opts?.hasSendStream !== false) {
-    connector.sendStream = vi.fn(async (stream: StreamableResult, meta?: Pick<SendPayload, 'kind' | 'source'>) => {
-      calls.push({ method: 'sendStream', stream, meta })
-      // Drain the stream so it doesn't hang
-      for await (const _e of stream) { /* drain */ }
-      await stream
-      return result
-    })
-  }
-
-  return connector
 }
 
 // ==================== Event Builders ====================

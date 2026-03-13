@@ -13,7 +13,7 @@
 
 import type { AskOptions, ProviderResult, ProviderEvent, GenerateOpts } from './ai-provider.js'
 import { GenerateRouter, StreamableResult } from './ai-provider.js'
-import type { SessionStore, ContentBlock } from './session.js'
+import type { ISessionStore, ContentBlock } from './session.js'
 import { toTextHistory, toModelMessages } from './session.js'
 import type { CompactionConfig } from './compaction.js'
 import { compactIfNeeded } from './compaction.js'
@@ -55,7 +55,7 @@ export class AgentCenter {
   }
 
   /** Prompt with session history — full orchestration pipeline. */
-  askWithSession(prompt: string, session: SessionStore, opts?: AskOptions): StreamableResult {
+  askWithSession(prompt: string, session: ISessionStore, opts?: AskOptions): StreamableResult {
     return new StreamableResult(this._generate(prompt, session, opts))
   }
 
@@ -63,7 +63,7 @@ export class AgentCenter {
 
   private async *_generate(
     prompt: string,
-    session: SessionStore,
+    session: ISessionStore,
     opts?: AskOptions,
   ): AsyncGenerator<ProviderEvent> {
     const maxHistory = opts?.maxHistoryEntries ?? this.defaultMaxHistory

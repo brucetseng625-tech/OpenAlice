@@ -1,4 +1,4 @@
-import type { SessionStore, SDKModelMessage } from '../core/session.js'
+import type { ISessionStore, SDKModelMessage } from '../core/session.js'
 import type { CompactionConfig, CompactionResult } from '../core/compaction.js'
 import type { MediaAttachment } from '../core/types.js'
 
@@ -60,5 +60,5 @@ export interface GenerateProvider {
    * Use case: providers with native server-side compaction (e.g. Anthropic API
    * compact-2026-01-12) can bypass the local JSONL-based summarization.
    */
-  compact?(session: SessionStore, config: CompactionConfig): Promise<CompactionResult>
+  compact?(session: ISessionStore, config: CompactionConfig): Promise<CompactionResult>
 }

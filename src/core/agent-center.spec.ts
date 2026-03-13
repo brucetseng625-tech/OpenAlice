@@ -6,7 +6,7 @@ import { GenerateRouter } from './ai-provider.js'
 import { DEFAULT_COMPACTION_CONFIG, type CompactionConfig } from './compaction.js'
 import { VercelAIProvider } from '../ai-providers/vercel-ai-sdk/vercel-provider.js'
 import { createModelFromConfig } from '../ai-providers/vercel-ai-sdk/model-factory.js'
-import type { SessionStore, SessionEntry } from './session.js'
+import { MemorySessionStore, type SessionEntry } from './session.js'
 
 // ==================== Helpers ====================
 
@@ -47,43 +47,6 @@ function makeAgentCenter(overrides: MakeAgentCenterOpts = {}): AgentCenter {
   const router = new GenerateRouter(provider, null)
 
   return new AgentCenter({ router, compaction })
-}
-
-/** In-memory SessionStore mock (no filesystem). */
-function makeSessionMock(entries: SessionEntry[] = []): SessionStore {
-  const store: SessionEntry[] = [...entries]
-  return {
-    id: 'test-session',
-    appendUser: vi.fn(async (content: string) => {
-      const e: SessionEntry = {
-        type: 'user',
-        message: { role: 'user', content },
-        uuid: `u-${store.length}`,
-        parentUuid: null,
-        sessionId: 'test-session',
-        timestamp: new Date().toISOString(),
-      }
-      store.push(e)
-      return e
-    }),
-    appendAssistant: vi.fn(async (content: string | import('./session.js').ContentBlock[]) => {
-      const e: SessionEntry = {
-        type: 'assistant',
-        message: { role: 'assistant', content },
-        uuid: `a-${store.length}`,
-        parentUuid: null,
-        sessionId: 'test-session',
-        timestamp: new Date().toISOString(),
-      }
-      store.push(e)
-      return e
-    }),
-    appendRaw: vi.fn(async () => {}),
-    readAll: vi.fn(async () => [...store]),
-    readActive: vi.fn(async () => [...store]),
-    restore: vi.fn(async () => {}),
-    exists: vi.fn(async () => store.length > 0),
-  } as unknown as SessionStore
 }
 
 // ==================== Mock model-factory ====================
@@ -163,21 +126,23 @@ describe('AgentCenter', () => {
     it('appends user message to session before generating', async () => {
       const model = makeMockModel('session response')
       const agentCenter = makeAgentCenter({ model })
-      const session = makeSessionMock()
+      const session = new MemorySessionStore()
+      const spy = vi.spyOn(session, 'appendUser')
 
       await agentCenter.askWithSession('user prompt', session)
 
-      expect(session.appendUser).toHaveBeenCalledWith('user prompt', 'human')
+      expect(spy).toHaveBeenCalledWith('user prompt', 'human')
     })
 
     it('appends assistant response to session after generating', async () => {
       const model = makeMockModel('assistant reply')
       const agentCenter = makeAgentCenter({ model })
-      const session = makeSessionMock()
+      const session = new MemorySessionStore()
+      const spy = vi.spyOn(session, 'appendAssistant')
 
       await agentCenter.askWithSession('hello', session)
 
-      expect(session.appendAssistant).toHaveBeenCalledWith(
+      expect(spy).toHaveBeenCalledWith(
         [{ type: 'text', text: 'assistant reply' }],
         'vercel-ai',
       )
@@ -186,7 +151,7 @@ describe('AgentCenter', () => {
     it('returns the generated text and empty media', async () => {
       const model = makeMockModel('generated text')
       const agentCenter = makeAgentCenter({ model })
-      const session = makeSessionMock()
+      const session = new MemorySessionStore()
 
       const result = await agentCenter.askWithSession('prompt', session)
       expect(result.text).toBe('generated text')
@@ -203,7 +168,7 @@ describe('AgentCenter', () => {
         microcompactKeepRecent: 2,
       }
       const agentCenter = makeAgentCenter({ model, compaction })
-      const session = makeSessionMock()
+      const session = new MemorySessionStore()
 
       await agentCenter.askWithSession('test', session)
 
@@ -232,12 +197,13 @@ describe('AgentCenter', () => {
 
       const model = makeMockModel('from compacted')
       const agentCenter = makeAgentCenter({ model })
-      const session = makeSessionMock()
+      const session = new MemorySessionStore()
+      const spy = vi.spyOn(session, 'readActive')
 
       const result = await agentCenter.askWithSession('test', session)
       expect(result.text).toBe('from compacted')
       // readActive should NOT be called when activeEntries is provided
-      expect(session.readActive).not.toHaveBeenCalled()
+      expect(spy).not.toHaveBeenCalled()
     })
 
     it('falls back to session.readActive when no activeEntries', async () => {
@@ -249,10 +215,11 @@ describe('AgentCenter', () => {
 
       const model = makeMockModel('from readActive')
       const agentCenter = makeAgentCenter({ model })
-      const session = makeSessionMock()
+      const session = new MemorySessionStore()
+      const spy = vi.spyOn(session, 'readActive')
 
       await agentCenter.askWithSession('test', session)
-      expect(session.readActive).toHaveBeenCalled()
+      expect(spy).toHaveBeenCalled()
     })
   })
 

@@ -4,12 +4,15 @@
  * Verifies that all event types (text, tool_use, tool_result, media)
  * are correctly persisted to the session store with proper providerTag,
  * ContentBlock[] format, and media handling.
+ *
+ * Uses MemorySessionStore so assertions verify actual stored state
+ * (via readAll()), not just API call recordings.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { ContentBlock } from '../../session.js'
+import type { ContentBlock, SessionEntry } from '../../session.js'
 import {
   FakeProvider,
-  makeCapturingSession,
+  MemorySessionStore,
   makeAgentCenter,
   textEvent,
   toolUseEvent,
@@ -36,6 +39,20 @@ vi.mock('../../../ai-providers/log-tool-call.js', () => ({
   logToolCall: vi.fn(),
 }))
 
+// ==================== Helpers ====================
+
+function userEntries(entries: SessionEntry[]) {
+  return entries.filter(e => e.type === 'user')
+}
+
+function assistantEntries(entries: SessionEntry[]) {
+  return entries.filter(e => e.type === 'assistant')
+}
+
+function blocksOf(entry: SessionEntry): ContentBlock[] {
+  return entry.message.content as ContentBlock[]
+}
+
 // ==================== Tests ====================
 
 describe('AgentCenter — session persistence', () => {
@@ -49,21 +66,21 @@ describe('AgentCenter — session persistence', () => {
       doneEvent('hello'),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
-    const stream = ac.askWithSession('prompt', session)
-    await stream // drain
+    await ac.askWithSession('prompt', session)
 
-    const userWrites = session.writes.filter(w => w.method === 'appendUser')
-    const assistantWrites = session.writes.filter(w => w.method === 'appendAssistant')
+    const entries = await session.readAll()
+    const users = userEntries(entries)
+    const assistants = assistantEntries(entries)
 
-    expect(userWrites.length).toBeGreaterThanOrEqual(1)
-    expect(userWrites[0].content).toBe('prompt')
-    expect(userWrites[0].provider).toBe('human')
+    expect(users).toHaveLength(1)
+    expect(users[0].message.content).toBe('prompt')
+    expect(users[0].provider).toBe('human')
 
-    const finalWrite = assistantWrites[assistantWrites.length - 1]
-    expect(finalWrite.content).toEqual([{ type: 'text', text: 'hello' }])
-    expect(finalWrite.provider).toBe('vercel-ai')
+    expect(assistants).toHaveLength(1)
+    expect(blocksOf(assistants[0])).toEqual([{ type: 'text', text: 'hello' }])
+    expect(assistants[0].provider).toBe('vercel-ai')
   })
 
   it('A2: tool loop persists intermediate tool_use/tool_result + final text', async () => {
@@ -74,41 +91,42 @@ describe('AgentCenter — session persistence', () => {
       doneEvent('The weather is 72°F'),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     await ac.askWithSession('weather?', session)
 
-    const assistantWrites = session.writes.filter(w => w.method === 'appendAssistant')
-    const userWrites = session.writes.filter(w => w.method === 'appendUser')
+    const entries = await session.readAll()
+    const users = userEntries(entries)
+    const assistants = assistantEntries(entries)
 
-    expect(userWrites[0].content).toBe('weather?')
-    expect(userWrites[0].provider).toBe('human')
+    // User prompt + tool_result = 2 user entries
+    expect(users[0].message.content).toBe('weather?')
+    expect(users[0].provider).toBe('human')
 
-    const intermediateAssistant = assistantWrites.find(w => {
-      const content = w.content
-      return Array.isArray(content) && content.some((b: ContentBlock) => b.type === 'tool_use')
+    const toolResultEntry = users.find(u =>
+      Array.isArray(u.message.content) && (u.message.content as ContentBlock[]).some(b => b.type === 'tool_result'),
+    )
+    expect(toolResultEntry).toBeDefined()
+    expect(blocksOf(toolResultEntry!)[0]).toEqual({
+      type: 'tool_result',
+      tool_use_id: 't1',
+      content: '72°F',
     })
-    expect(intermediateAssistant).toBeDefined()
-    expect((intermediateAssistant!.content as ContentBlock[])[0]).toEqual({
+
+    // Intermediate tool_use + final text = 2 assistant entries
+    const toolUseEntry = assistants.find(a =>
+      blocksOf(a).some(b => b.type === 'tool_use'),
+    )
+    expect(toolUseEntry).toBeDefined()
+    expect(blocksOf(toolUseEntry!)[0]).toEqual({
       type: 'tool_use',
       id: 't1',
       name: 'get_weather',
       input: { city: 'Tokyo' },
     })
 
-    const toolResultWrite = userWrites.find(w => {
-      const content = w.content
-      return Array.isArray(content) && (content as ContentBlock[]).some((b: ContentBlock) => b.type === 'tool_result')
-    })
-    expect(toolResultWrite).toBeDefined()
-    expect((toolResultWrite!.content as ContentBlock[])[0]).toEqual({
-      type: 'tool_result',
-      tool_use_id: 't1',
-      content: '72°F',
-    })
-
-    const finalAssistant = assistantWrites[assistantWrites.length - 1]
-    expect(finalAssistant.content).toEqual([{ type: 'text', text: 'The weather is 72°F' }])
+    const finalEntry = assistants[assistants.length - 1]
+    expect(blocksOf(finalEntry)).toEqual([{ type: 'text', text: 'The weather is 72°F' }])
   })
 
   it('A3: multi-turn tools produce correct flush ordering', async () => {
@@ -121,23 +139,23 @@ describe('AgentCenter — session persistence', () => {
       doneEvent('combined answer'),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     await ac.askWithSession('search both', session)
 
-    const providerWrites = session.writes.filter(w => w.provider !== 'human')
+    const entries = await session.readAll()
 
-    const toolUseWrites = providerWrites.filter(w =>
-      Array.isArray(w.content) && (w.content as ContentBlock[]).some(b => b.type === 'tool_use'),
+    const toolUseEntries = entries.filter(e =>
+      e.type === 'assistant' && blocksOf(e).some(b => b.type === 'tool_use'),
     )
-    expect(toolUseWrites).toHaveLength(2)
-    expect(((toolUseWrites[0].content as ContentBlock[])[0] as { name: string }).name).toBe('search')
-    expect(((toolUseWrites[1].content as ContentBlock[])[0] as { name: string }).name).toBe('search')
+    expect(toolUseEntries).toHaveLength(2)
+    expect((blocksOf(toolUseEntries[0])[0] as { name: string }).name).toBe('search')
+    expect((blocksOf(toolUseEntries[1])[0] as { name: string }).name).toBe('search')
 
-    const toolResultWrites = providerWrites.filter(w =>
-      Array.isArray(w.content) && (w.content as ContentBlock[]).some(b => b.type === 'tool_result'),
+    const toolResultEntries = entries.filter(e =>
+      e.type === 'user' && Array.isArray(e.message.content) && (e.message.content as ContentBlock[]).some(b => b.type === 'tool_result'),
     )
-    expect(toolResultWrites).toHaveLength(2)
+    expect(toolResultEntries).toHaveLength(2)
   })
 
   it('A4: media in done event persists image blocks in final write', async () => {
@@ -146,15 +164,14 @@ describe('AgentCenter — session persistence', () => {
       doneEvent('chart generated', [{ type: 'image', path: '/tmp/chart.png' }]),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     await ac.askWithSession('make a chart', session)
 
-    const assistantWrites = session.writes.filter(w => w.method === 'appendAssistant')
-    const finalWrite = assistantWrites[assistantWrites.length - 1]
-    const blocks = finalWrite.content as ContentBlock[]
+    const assistants = assistantEntries(await session.readAll())
+    const finalEntry = assistants[assistants.length - 1]
 
-    expect(blocks).toEqual([
+    expect(blocksOf(finalEntry)).toEqual([
       { type: 'text', text: 'chart generated' },
       { type: 'image', url: '/api/media/2026-03-13/ace-aim-air.png' },
     ])
@@ -172,16 +189,15 @@ describe('AgentCenter — session persistence', () => {
       doneEvent('screenshot taken'),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     await ac.askWithSession('take screenshot', session)
 
-    const assistantWrites = session.writes.filter(w => w.method === 'appendAssistant')
-    const finalWrite = assistantWrites[assistantWrites.length - 1]
-    const blocks = finalWrite.content as ContentBlock[]
+    const assistants = assistantEntries(await session.readAll())
+    const finalBlocks = blocksOf(assistants[assistants.length - 1])
 
-    expect(blocks).toContainEqual({ type: 'text', text: 'screenshot taken' })
-    expect(blocks).toContainEqual({ type: 'image', url: '/api/media/2026-03-13/ace-aim-air.png' })
+    expect(finalBlocks).toContainEqual({ type: 'text', text: 'screenshot taken' })
+    expect(finalBlocks).toContainEqual({ type: 'image', url: '/api/media/2026-03-13/ace-aim-air.png' })
   })
 
   it('A6: providerTag correctly propagates for each provider type', async () => {
@@ -192,13 +208,13 @@ describe('AgentCenter — session persistence', () => {
         { providerTag: tag },
       )
       const ac = makeAgentCenter(provider)
-      const session = makeCapturingSession()
+      const session = new MemorySessionStore()
 
       await ac.askWithSession('test', session)
 
-      const assistantWrites = session.writes.filter(w => w.method === 'appendAssistant')
-      const finalWrite = assistantWrites[assistantWrites.length - 1]
-      expect(finalWrite.provider).toBe(tag)
+      const assistants = assistantEntries(await session.readAll())
+      const finalEntry = assistants[assistants.length - 1]
+      expect(finalEntry.provider).toBe(tag)
     }
   })
 
@@ -211,15 +227,14 @@ describe('AgentCenter — session persistence', () => {
       doneEvent('image gone', [{ type: 'image', path: '/tmp/deleted.png' }]),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     await ac.askWithSession('generate', session)
 
-    const assistantWrites = session.writes.filter(w => w.method === 'appendAssistant')
-    const finalWrite = assistantWrites[assistantWrites.length - 1]
-    const blocks = finalWrite.content as ContentBlock[]
+    const assistants = assistantEntries(await session.readAll())
+    const finalBlocks = blocksOf(assistants[assistants.length - 1])
 
-    expect(blocks).toEqual([{ type: 'text', text: 'image gone' }])
+    expect(finalBlocks).toEqual([{ type: 'text', text: 'image gone' }])
   })
 
   it('A8: multiple media from tool_result + done event both appear in final', async () => {
@@ -238,15 +253,14 @@ describe('AgentCenter — session persistence', () => {
       doneEvent('done', [{ type: 'image', path: '/tmp/chart.png' }]),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     await ac.askWithSession('browse and chart', session)
 
-    const assistantWrites = session.writes.filter(w => w.method === 'appendAssistant')
-    const finalWrite = assistantWrites[assistantWrites.length - 1]
-    const blocks = finalWrite.content as ContentBlock[]
+    const assistants = assistantEntries(await session.readAll())
+    const finalBlocks = blocksOf(assistants[assistants.length - 1])
 
-    expect(blocks).toEqual([
+    expect(finalBlocks).toEqual([
       { type: 'text', text: 'done' },
       { type: 'image', url: '/api/media/2026-03-13/tool-media-one.png' },
       { type: 'image', url: '/api/media/2026-03-13/done-media-two.png' },
@@ -266,17 +280,17 @@ describe('AgentCenter — session persistence', () => {
       doneEvent('ok'),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     await ac.askWithSession('screenshot', session)
 
-    const toolResultWrite = session.writes.find(w => {
-      const content = w.content
-      return Array.isArray(content) && (content as ContentBlock[]).some(b => b.type === 'tool_result')
-    })
-    expect(toolResultWrite).toBeDefined()
+    const users = userEntries(await session.readAll())
+    const toolResultEntry = users.find(u =>
+      Array.isArray(u.message.content) && (u.message.content as ContentBlock[]).some(b => b.type === 'tool_result'),
+    )
+    expect(toolResultEntry).toBeDefined()
 
-    const toolResultBlock = (toolResultWrite!.content as ContentBlock[]).find(b => b.type === 'tool_result')!
+    const toolResultBlock = blocksOf(toolResultEntry!).find(b => b.type === 'tool_result')!
     const parsed = JSON.parse((toolResultBlock as { content: string }).content)
     expect(parsed[0]).toEqual({ type: 'text', text: '[Image saved to disk — use Read tool to view the file]' })
     expect(parsed[1]).toEqual({ type: 'text', text: 'Screenshot captured' })
@@ -287,14 +301,13 @@ describe('AgentCenter — session persistence', () => {
       doneEvent(''),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     const result = await ac.askWithSession('silent', session)
 
     expect(result.text).toBe('')
-    const assistantWrites = session.writes.filter(w => w.method === 'appendAssistant')
-    const finalWrite = assistantWrites[assistantWrites.length - 1]
-    expect(finalWrite.content).toEqual([{ type: 'text', text: '' }])
+    const assistants = assistantEntries(await session.readAll())
+    expect(blocksOf(assistants[assistants.length - 1])).toEqual([{ type: 'text', text: '' }])
   })
 
   it('A11: provider stream without done event throws', async () => {
@@ -302,7 +315,7 @@ describe('AgentCenter — session persistence', () => {
       textEvent('cut off mid-'),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     await expect(ac.askWithSession('test', session)).rejects.toThrow(
       'provider stream ended without done event',
@@ -317,15 +330,15 @@ describe('AgentCenter — session persistence', () => {
       doneEvent('first second third'),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     await ac.askWithSession('multi-text', session)
 
-    const assistantWrites = session.writes.filter(w => w.method === 'appendAssistant')
+    const assistants = assistantEntries(await session.readAll())
 
-    // Only one assistant write — the authoritative final text (no duplicate intermediate flush)
-    expect(assistantWrites).toHaveLength(1)
-    expect(assistantWrites[0].content).toEqual([{ type: 'text', text: 'first second third' }])
+    // Only one assistant entry — the authoritative final text (no duplicate intermediate flush)
+    expect(assistants).toHaveLength(1)
+    expect(blocksOf(assistants[0])).toEqual([{ type: 'text', text: 'first second third' }])
   })
 
   it('A13: tool_use with complex nested input preserves structure', async () => {
@@ -344,16 +357,14 @@ describe('AgentCenter — session persistence', () => {
       doneEvent('Orders submitted'),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     await ac.askWithSession('submit orders', session)
 
-    const assistantWrites = session.writes.filter(w => w.method === 'appendAssistant')
-    const toolUseWrite = assistantWrites.find(w =>
-      Array.isArray(w.content) && (w.content as ContentBlock[]).some(b => b.type === 'tool_use'),
-    )
-    expect(toolUseWrite).toBeDefined()
-    const toolUseBlock = (toolUseWrite!.content as ContentBlock[]).find(b => b.type === 'tool_use')!
+    const assistants = assistantEntries(await session.readAll())
+    const toolUseEntry = assistants.find(a => blocksOf(a).some(b => b.type === 'tool_use'))
+    expect(toolUseEntry).toBeDefined()
+    const toolUseBlock = blocksOf(toolUseEntry!).find(b => b.type === 'tool_use')!
     expect((toolUseBlock as { input: unknown }).input).toEqual(complexInput)
   })
 
@@ -367,17 +378,17 @@ describe('AgentCenter — session persistence', () => {
       doneEvent('Based on the result: everything looks good.'),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     await ac.askWithSession('check', session)
 
-    const assistantWrites = session.writes.filter(w => w.method === 'appendAssistant')
-    const firstFlush = assistantWrites.find(w => {
-      const content = w.content as ContentBlock[]
-      return Array.isArray(content) && content.some(b => b.type === 'tool_use') && content.some(b => b.type === 'text')
+    const assistants = assistantEntries(await session.readAll())
+    const firstFlush = assistants.find(a => {
+      const blocks = blocksOf(a)
+      return blocks.some(b => b.type === 'tool_use') && blocks.some(b => b.type === 'text')
     })
     expect(firstFlush).toBeDefined()
-    const blocks = firstFlush!.content as ContentBlock[]
+    const blocks = blocksOf(firstFlush!)
     expect(blocks[0]).toEqual({ type: 'text', text: 'Let me check...' })
     expect(blocks[1]).toMatchObject({ type: 'tool_use', name: 'lookup' })
   })
@@ -393,20 +404,21 @@ describe('AgentCenter — session persistence', () => {
       { providerTag: 'agent-sdk' },
     )
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     await ac.askWithSession('calc', session)
 
-    const assistantWrites = session.writes.filter(w => w.method === 'appendAssistant')
-    for (const w of assistantWrites) {
-      expect(w.provider).toBe('agent-sdk')
+    const entries = await session.readAll()
+    const assistants = assistantEntries(entries)
+    for (const a of assistants) {
+      expect(a.provider).toBe('agent-sdk')
     }
 
-    const toolResultUserWrites = session.writes.filter(w =>
-      w.method === 'appendUser' && Array.isArray(w.content),
+    const toolResultUsers = userEntries(entries).filter(u =>
+      Array.isArray(u.message.content) && (u.message.content as ContentBlock[]).some(b => b.type === 'tool_result'),
     )
-    for (const w of toolResultUserWrites) {
-      expect(w.provider).toBe('agent-sdk')
+    for (const u of toolResultUsers) {
+      expect(u.provider).toBe('agent-sdk')
     }
   })
 })

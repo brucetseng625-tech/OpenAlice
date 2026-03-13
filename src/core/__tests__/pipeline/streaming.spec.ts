@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { StreamableResult, type ProviderEvent } from '../../ai-provider.js'
 import {
   FakeProvider,
-  makeCapturingSession,
+  MemorySessionStore,
   makeAgentCenter,
   collectEvents,
   textEvent,
@@ -52,7 +52,7 @@ describe('AgentCenter — streaming output', () => {
       doneEvent('The answer is 2'),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     const stream = ac.askWithSession('calculate', session)
     const events = await collectEvents(stream)
@@ -70,7 +70,7 @@ describe('AgentCenter — streaming output', () => {
       doneEvent('image ready', [{ type: 'image', path: '/tmp/img.png' }]),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     const stream = ac.askWithSession('gen image', session)
     const events = await collectEvents(stream)
@@ -88,7 +88,7 @@ describe('AgentCenter — streaming output', () => {
       doneEvent('result', [{ type: 'image', path: '/tmp/x.png' }]),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     const stream = ac.askWithSession('go', session)
     const result = await stream
@@ -133,7 +133,7 @@ describe('AgentCenter — streaming output', () => {
       doneEvent('hello'),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     const stream = ac.askWithSession('test', session)
 
@@ -177,7 +177,7 @@ describe('AgentCenter — streaming output', () => {
       doneEvent('The price is $100.00'),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     const stream = ac.askWithSession('get price', session)
     const events = await collectEvents(stream)
@@ -196,7 +196,7 @@ describe('AgentCenter — streaming output', () => {
       doneEvent('no media'),
     ])
     const ac = makeAgentCenter(provider)
-    const session = makeCapturingSession()
+    const session = new MemorySessionStore()
 
     const stream = ac.askWithSession('plain', session)
     const events = await collectEvents(stream)
