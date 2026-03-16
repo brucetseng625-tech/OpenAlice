@@ -10,4 +10,22 @@ export default defineConfig({
       '@': resolve(__dirname, './src'),
     },
   },
+  test: {
+    projects: [
+      {
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: ['src/**/*.spec.*', 'packages/**/*.spec.*'],
+        },
+      },
+      {
+        test: {
+          name: 'ui',
+          environment: 'jsdom',
+          include: ['ui/**/*.spec.*'],
+        },
+      },
+    ],
+  },
 })
