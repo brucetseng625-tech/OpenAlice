@@ -76,9 +76,9 @@ export function AIProviderPage() {
       <div className="flex-1 overflow-y-auto px-4 md:px-6 py-6">
           <div className="max-w-[640px] space-y-5">
             {/* Backend */}
-            <Section id="backend" title="Backend" description="Runtime switch between AI backends. Claude Code calls the local CLI; Vercel AI SDK calls the API directly; Agent SDK uses the programmatic SDK. Changes take effect immediately.">
+            <Section id="backend" title="Backend" description="Runtime switch between AI backends. Agent SDK uses the Claude Code CLI via programmatic SDK; Vercel AI SDK calls the API directly. Changes take effect immediately.">
               <div className="flex border border-border rounded-lg overflow-hidden">
-                {(['claude-code', 'vercel-ai-sdk', 'agent-sdk'] as const).map((b, i) => (
+                {(['agent-sdk', 'vercel-ai-sdk'] as const).map((b, i) => (
                   <button
                     key={b}
                     onClick={() => handleBackendSwitch(b)}
@@ -88,7 +88,7 @@ export function AIProviderPage() {
                         : 'bg-bg text-text-muted hover:bg-bg-tertiary hover:text-text'
                     } ${i > 0 ? 'border-l border-border' : ''}`}
                   >
-                    {{ 'claude-code': 'Claude Code', 'vercel-ai-sdk': 'Vercel AI SDK', 'agent-sdk': 'Agent SDK' }[b]}
+                    {{ 'agent-sdk': 'Agent SDK', 'vercel-ai-sdk': 'Vercel AI SDK' }[b]}
                   </button>
                 ))}
               </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api'
+import type { LoginMethod } from '../api/types'
 import type { ChannelListItem } from '../api/channels'
 import type { ToolInfo } from '../api/tools'
 
@@ -28,7 +29,7 @@ export function ChannelConfigModal({ channel, onClose, onSaved }: ChannelConfigM
   const [aModel, setAModel] = useState(channel.agentSdk?.model ?? '')
   const [aBaseUrl, setABaseUrl] = useState(channel.agentSdk?.baseUrl ?? '')
   const [aApiKey, setAApiKey] = useState(channel.agentSdk?.apiKey ?? '')
-  const [aLoginMethod, setALoginMethod] = useState(channel.agentSdk?.loginMethod ?? '')
+  const [aLoginMethod, setALoginMethod] = useState<LoginMethod | ''>(channel.agentSdk?.loginMethod ?? '')
 
   const showVercelConfig = provider === 'vercel-ai-sdk'
   const showAgentSdkConfig = provider === 'agent-sdk'
@@ -55,7 +56,7 @@ export function ChannelConfigModal({ channel, onClose, onSaved }: ChannelConfigM
             ...(aModel ? { model: aModel } : {}),
             ...(aBaseUrl ? { baseUrl: aBaseUrl } : {}),
             ...(aApiKey ? { apiKey: aApiKey } : {}),
-            ...(aLoginMethod ? { loginMethod: aLoginMethod as 'api-key' | 'oauth' | 'claudeai' } : {}),
+            ...(aLoginMethod ? { loginMethod: aLoginMethod } : {}),
           }
         : undefined
 
@@ -148,9 +149,8 @@ export function ChannelConfigModal({ channel, onClose, onSaved }: ChannelConfigM
               className={inputClass}
             >
               <option value="">Default (global)</option>
-              <option value="vercel-ai-sdk">Vercel AI SDK</option>
-              <option value="claude-code">Claude Code</option>
               <option value="agent-sdk">Agent SDK</option>
+              <option value="vercel-ai-sdk">Vercel AI SDK</option>
             </select>
           </div>
 
@@ -223,7 +223,7 @@ export function ChannelConfigModal({ channel, onClose, onSaved }: ChannelConfigM
                 <label className="block text-xs text-text-muted/70 mb-1">Login Method</label>
                 <select
                   value={aLoginMethod}
-                  onChange={(e) => setALoginMethod(e.target.value)}
+                  onChange={(e) => setALoginMethod((e.target.value || '') as LoginMethod | '')}
                   className={inputClass}
                 >
                   <option value="">Default (global)</option>

@@ -323,6 +323,14 @@ export async function loadConfig(): Promise<Config> {
     await removeJsonFile('api-keys.json')
   }
 
+  // ---------- Migration: claude-code backend → agent-sdk + claudeai ----------
+  if (aiProviderRaw && (aiProviderRaw as Record<string, unknown>).backend === 'claude-code') {
+    const patched = { ...(aiProviderRaw as Record<string, unknown>), backend: 'agent-sdk', loginMethod: 'claudeai' }
+    raws[6] = patched
+    await mkdir(CONFIG_DIR, { recursive: true })
+    await writeFile(resolve(CONFIG_DIR, 'ai-provider-manager.json'), JSON.stringify(patched, null, 2) + '\n')
+  }
+
   // ---------- Migration: consolidate old telegram.json + engine port fields ----------
   const connectorsRaw = raws[8] as Record<string, unknown> | undefined
   if (connectorsRaw === undefined) {
