@@ -265,16 +265,29 @@ export class IbkrBroker implements IBroker {
     const allOrders = await this.bridge.requestOpenOrders()
     return allOrders
       .filter(o => orderIds.includes(String(o.order.orderId)))
-      .map(o => ({
-        contract: o.contract,
-        order: o.order,
-        orderState: o.orderState,
-      }))
+      .map(o => this.enrichWithFillData(o))
   }
 
   async getOrder(orderId: string): Promise<OpenOrder | null> {
+    // Try open orders first
     const results = await this.getOrders([orderId])
-    return results[0] ?? null
+    if (results[0]) return results[0]
+
+    // Fallback to completed orders (filled/cancelled orders leave the open list)
+    const completed = await this.bridge.requestCompletedOrders()
+    const match = completed.find(o => String(o.order.orderId) === orderId)
+    return match ? this.enrichWithFillData(match) : null
+  }
+
+  /** Attach avgFillPrice from cached orderStatus data if available. */
+  private enrichWithFillData(o: import('./ibkr-types.js').CollectedOpenOrder): OpenOrder {
+    const fillData = this.bridge.getFillData(o.order.orderId)
+    return {
+      contract: o.contract,
+      order: o.order,
+      orderState: o.orderState,
+      avgFillPrice: fillData?.avgFillPrice ?? o.avgFillPrice,
+    }
   }
 
   async getQuote(contract: Contract): Promise<Quote> {
