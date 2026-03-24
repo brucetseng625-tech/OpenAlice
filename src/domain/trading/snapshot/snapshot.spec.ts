@@ -70,24 +70,25 @@ describe('Snapshot Builder', () => {
   it('builds complete snapshot from healthy UTA', async () => {
     broker.setPositions([makePosition()])
     const snap = await buildSnapshot(uta, 'manual')
+    expect(snap).not.toBeNull()
 
-    expect(snap.accountId).toBe(broker.id)
-    expect(snap.trigger).toBe('manual')
-    expect(snap.health).toBe('healthy')
-    expect(snap.positions).toHaveLength(1)
-    expect(snap.account.netLiquidation).toBeTruthy()
-    expect(snap.timestamp).toBeTruthy()
+    expect(snap!.accountId).toBe(broker.id)
+    expect(snap!.trigger).toBe('manual')
+    expect(snap!.health).toBe('healthy')
+    expect(snap!.positions).toHaveLength(1)
+    expect(snap!.account.netLiquidation).toBeTruthy()
+    expect(snap!.timestamp).toBeTruthy()
   })
 
   // #2
   it('stores all financial values as strings', async () => {
     const snap = await buildSnapshot(uta, 'manual')
+    expect(snap).not.toBeNull()
 
-    // Account fields
-    expect(typeof snap.account.netLiquidation).toBe('string')
-    expect(typeof snap.account.totalCashValue).toBe('string')
-    expect(typeof snap.account.unrealizedPnL).toBe('string')
-    expect(typeof snap.account.realizedPnL).toBe('string')
+    expect(typeof snap!.account.netLiquidation).toBe('string')
+    expect(typeof snap!.account.totalCashValue).toBe('string')
+    expect(typeof snap!.account.unrealizedPnL).toBe('string')
+    expect(typeof snap!.account.realizedPnL).toBe('string')
   })
 
   // #3
@@ -95,16 +96,16 @@ describe('Snapshot Builder', () => {
     const pos = makePosition({ contract: makeContract({ symbol: 'TSLA', aliceId: 'mock-TSLA' }) })
     broker.setPositions([pos])
     const snap = await buildSnapshot(uta, 'manual')
+    expect(snap).not.toBeNull()
 
-    expect(snap.positions[0].aliceId).toBe(`${broker.id}|TSLA`)
-    expect(snap.positions[0]).not.toHaveProperty('contract')
-    expect(typeof snap.positions[0].quantity).toBe('string')
-    expect(typeof snap.positions[0].avgCost).toBe('string')
+    expect(snap!.positions[0].aliceId).toBe(`${broker.id}|TSLA`)
+    expect(snap!.positions[0]).not.toHaveProperty('contract')
+    expect(typeof snap!.positions[0].quantity).toBe('string')
+    expect(typeof snap!.positions[0].avgCost).toBe('string')
   })
 
   // #4
   it('only includes Submitted/PreSubmitted orders', async () => {
-    // Place a limit order through UTA so git tracks the pending orderId
     const contract = makeContract({ symbol: 'AAPL' })
     broker.setQuote('AAPL', 150)
 
@@ -112,19 +113,19 @@ describe('Snapshot Builder', () => {
     order.action = 'BUY'
     order.orderType = 'LMT'
     order.totalQuantity = new Decimal(5)
-    order.lmtPrice = 140 // Below market — stays Submitted
+    order.lmtPrice = 140
     order.tif = 'DAY'
 
     uta.git.add({ action: 'placeOrder', contract, order })
     uta.git.commit('buy limit')
     await uta.push()
 
-    // Now build snapshot — builder queries pending order IDs from git
     const snap = await buildSnapshot(uta, 'manual')
+    expect(snap).not.toBeNull()
 
-    expect(snap.openOrders).toHaveLength(1)
-    expect(snap.openOrders[0].status).toBe('Submitted')
-    expect(snap.openOrders[0].orderType).toBe('LMT')
+    expect(snap!.openOrders).toHaveLength(1)
+    expect(snap!.openOrders[0].status).toBe('Submitted')
+    expect(snap!.openOrders[0].orderType).toBe('LMT')
   })
 
   // #5
