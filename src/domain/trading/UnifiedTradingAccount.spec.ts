@@ -290,6 +290,26 @@ describe('UTA — stagePlaceOrder', () => {
     expect(order.auxPrice).toBe(145)
   })
 
+  it('maps trailingAmount to trailStopPrice (not auxPrice)', () => {
+    uta.stagePlaceOrder({ aliceId: 'mock-paper|AAPL', side: 'sell', type: 'trailing_stop', qty: 10, trailingAmount: 5 })
+    const { order } = getStagedPlaceOrder(uta)
+    expect(order.trailStopPrice).toBe(5)
+    expect(order.orderType).toBe('TRAIL')
+  })
+
+  it('trailingAmount and stopPrice use separate fields', () => {
+    uta.stagePlaceOrder({ aliceId: 'mock-paper|AAPL', side: 'sell', type: 'trailing_stop', qty: 10, stopPrice: 145, trailingAmount: 5 })
+    const { order } = getStagedPlaceOrder(uta)
+    expect(order.auxPrice).toBe(145)
+    expect(order.trailStopPrice).toBe(5)
+  })
+
+  it('maps trailingPercent to trailingPercent', () => {
+    uta.stagePlaceOrder({ aliceId: 'mock-paper|AAPL', side: 'sell', type: 'trailing_stop', qty: 10, trailingPercent: 2.5 })
+    const { order } = getStagedPlaceOrder(uta)
+    expect(order.trailingPercent).toBe(2.5)
+  })
+
   it('defaults timeInForce to DAY', () => {
     uta.stagePlaceOrder({ aliceId: 'mock-paper|AAPL', side: 'buy', type: 'market', qty: 10 })
     const { order } = getStagedPlaceOrder(uta)
