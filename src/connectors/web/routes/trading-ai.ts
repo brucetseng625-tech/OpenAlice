@@ -6,6 +6,8 @@
  *   GET  /status          — get Trading AI status + last backtest
  *   GET  /backtest        — get latest backtest trades
  *   GET  /equity-curve    — get equity curve from latest backtest
+ *   POST /run-pipeline    — run live 5 Blocks analysis (MarketContext)
+ *   GET  /paper-trading   — get paper trading status
  */
 import { Hono } from 'hono'
 import {
@@ -13,6 +15,8 @@ import {
   getTradingAIStatus,
   getBacktestTrades,
   getEquityCurve,
+  runPipeline,
+  getPaperTradingStatus,
 } from '../../../domain/trading-ai/index.js'
 
 export function createTradingAIRoutes() {
@@ -67,6 +71,32 @@ export function createTradingAIRoutes() {
     try {
       const curve = await getEquityCurve()
       return c.json({ success: curve.length > 0, data_points: curve.length, curve: curve.slice(-100) })
+    } catch (err) {
+      return c.json({
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      }, 500)
+    }
+  })
+
+  /** Run live 5 Blocks pipeline */
+  app.post('/run-pipeline', async (c) => {
+    try {
+      const result = await runPipeline()
+      return c.json({ success: true, ...result })
+    } catch (err) {
+      return c.json({
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      }, 500)
+    }
+  })
+
+  /** Get paper trading status */
+  app.get('/paper-trading', async (c) => {
+    try {
+      const pt = await getPaperTradingStatus()
+      return c.json({ success: true, ...pt })
     } catch (err) {
       return c.json({
         success: false,

@@ -3,11 +3,14 @@
  *
  * 透過 child_process 執行 Trading AI 的回測和訊號產生，
  * 將結果回傳給 OpenAlice 使用。
+ *
+ * 新增：即時 5 Blocks 分析（--json flag），產生 MarketContext。
  */
 
 import { spawn } from 'child_process'
 import { readFile } from 'fs/promises'
 import { resolve, dirname } from 'path'
+import { writeFileSync } from 'fs'
 
 const TRADING_AI_ROOT = resolve(process.cwd(), '..', 'TradingAI')
 
@@ -42,6 +45,55 @@ export interface TradingAIStatus {
     capital_ratio: number
     max_loss: number
   }
+}
+
+/** MarketContext from TradingAI 5 Blocks pipeline */
+export interface MarketContext {
+  timestamp?: string
+  fg_value?: number
+  fg_bias?: string
+  fg_signal?: string
+  fg_score?: number
+  dominance?: number
+  best_symbol?: string
+  avoid_symbol?: string
+  onchain_bias?: string
+  news_bias?: string
+  btc_price?: number
+  btc_phase?: string
+  sym_phase?: string
+  direction?: string
+  confidence?: string
+  sym_sup?: number
+  sym_res?: number
+  bb_upper?: number
+  bb_mid?: number
+  bb_low?: number
+  bb_state?: string
+  bb_width?: number
+  smc_valid?: boolean
+  entry_zone?: string
+  stop_zone?: string
+  tp1_zone?: string
+  tp2_zone?: string
+  warning?: string
+  entry?: number
+  stop?: number
+  tp1?: number
+  tp2?: number
+  rr?: number
+  stop_dist?: number
+  entry_dist?: number
+  max_lev?: number
+  market_state?: string
+  is_tradeable?: boolean
+  reject_reason?: string
+  phi4_verdict?: string
+  report_zh?: string
+  order_id?: string
+  order_status?: string
+  position_size?: number
+  stderr?: string
 }
 
 async function runPythonScript(script: string, args: string[]): Promise<string> {
@@ -141,4 +193,51 @@ export async function getBacktestTrades(market: 'crypto' | 'twse' = 'crypto'): P
 export async function getEquityCurve(): Promise<number[]> {
   const result = await readBacktestResult('backtest_trades.json')
   return result?.equity_curve as number[] || []
+}
+
+/**
+ * Run the live 5 Blocks pipeline (no backtest).
+ * Returns the MarketContext JSON output.
+ */
+export async function runPipeline(): Promise<MarketContext> {
+  const stdout = await runPythonScript('main.py', ['--json'])
+
+  // Parse JSON from stdout (after __JSON_RESULT__ marker)
+  const marker = '__JSON_RESULT__'
+  const idx = stdout.indexOf(marker)
+  if (idx === -1) {
+    throw new Error(`TradingAI pipeline ran but no JSON output found. Stdout: ${stdout.slice(-500)}`)
+  }
+
+  const jsonStr = stdout.slice(idx + marker.length).trim()
+  try {
+    return JSON.parse(jsonStr) as MarketContext
+  } catch {
+    throw new Error(`Failed to parse MarketContext JSON: ${jsonStr.slice(0, 500)}`)
+  }
+}
+
+/**
+ * Read the trade_log.json from TradingAI to get current paper trading status.
+ */
+export async function getPaperTradingStatus(): Promise<{
+  balance: number
+  positions: Array<Record<string, unknown>>
+  history: Array<Record<string, unknown>>
+}> {
+  const tradeLogPath = resolve(TRADING_AI_ROOT, 'reports', 'trade_log.json')
+  try {
+    const content = await readFile(tradeLogPath, 'utf-8')
+    const trades = JSON.parse(content) as Array<Record<string, unknown>>
+    const positions = trades.filter(t => t.status === 'pending' || t.status === 'active')
+    const history = trades.filter(t => t.status === 'filled')
+    const pnl = history.reduce((sum, t) => sum + ((t.pnl as number) || 0), 0)
+    return {
+      balance: 10000 + pnl, // INITIAL_BALANCE + realized PnL
+      positions,
+      history,
+    }
+  } catch {
+    return { balance: 10000, positions: [], history: [] }
+  }
 }

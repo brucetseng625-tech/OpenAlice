@@ -8,8 +8,11 @@ export function TradingAIPage() {
   const [backtest, setBacktest] = useState<BacktestResult | null>(null)
   const [equityCurve, setEquityCurve] = useState<number[]>([])
   const [running, setRunning] = useState(false)
+  const [analyzing, setAnalyzing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [liveResult, setLiveResult] = useState<Record<string, unknown> | null>(null)
+  const [paperStatus, setPaperStatus] = useState<Record<string, unknown> | null>(null)
 
   const fetchData = useCallback(async () => {
     try {
@@ -71,6 +74,36 @@ export function TradingAIPage() {
     }
   }
 
+  const runAnalysis = async () => {
+    setAnalyzing(true)
+    setError(null)
+    setLiveResult(null)
+    try {
+      const result = await api.tradingAI.runPipeline()
+      if (!result.success) {
+        setError(result.error as string || 'Analysis failed')
+      } else {
+        const { success, ...rest } = result
+        setLiveResult(rest as Record<string, unknown>)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to run analysis')
+    } finally {
+      setAnalyzing(false)
+    }
+  }
+
+  const loadPaperStatus = async () => {
+    try {
+      const result = await api.tradingAI.getPaperTrading()
+      if (result.success) {
+        setPaperStatus(result)
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   if (loading) {
     return <PageShell subtitle="Loading..." />
   }
@@ -83,18 +116,31 @@ export function TradingAIPage() {
         right={
           <div className="flex items-center gap-2">
             <button
-              onClick={() => runBacktest('crypto')}
-              disabled={running}
+              onClick={runAnalysis}
+              disabled={analyzing}
               className="btn-primary text-xs"
             >
-              {running ? 'Running...' : 'Run Crypto Backtest'}
+              {analyzing ? 'Analyzing...' : 'Run Live Analysis'}
+            </button>
+            <button
+              onClick={loadPaperStatus}
+              className="btn-secondary text-xs"
+            >
+              Paper Trading
+            </button>
+            <button
+              onClick={() => runBacktest('crypto')}
+              disabled={running}
+              className="btn-secondary text-xs"
+            >
+              {running ? 'Running...' : 'Backtest Crypto'}
             </button>
             <button
               onClick={() => runBacktest('twse')}
               disabled={running}
               className="btn-secondary text-xs"
             >
-              {running ? 'Running...' : 'Run TWSE Backtest'}
+              {running ? 'Running...' : 'Backtest TWSE'}
             </button>
           </div>
         }
@@ -115,6 +161,125 @@ export function TradingAIPage() {
               <KPICard label="Win Rate" value={`${((backtest.stats.win_rate ?? 0) * 100).toFixed(1)}%`} />
               <KPICard label="Total PnL" value={formatPnL(backtest.stats.total_pnl)} />
               <KPICard label="Sharpe Ratio" value={(backtest.stats.sharpe_ratio ?? 0).toFixed(2)} />
+            </div>
+          )}
+
+          {/* Live Analysis Result */}
+          {liveResult && (
+            <div className="rounded-xl border border-border p-4">
+              <h3 className="text-[13px] font-semibold text-text mb-3">
+                Live Analysis — {liveResult.timestamp as string}
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <KPICard label="Best Symbol" value={String(liveResult.best_symbol ?? 'N/A')} />
+                <KPICard label="Direction" value={String(liveResult.direction ?? 'N/A')} />
+                <KPICard label="Confidence" value={String(liveResult.confidence ?? 'N/A')} />
+                <KPICard
+                  label="Tradeable"
+                  value={liveResult.is_tradeable ? 'Yes' : 'No'}
+                  highlight={!liveResult.is_tradeable ? 'red' : 'green'}
+                />
+              </div>
+              {liveResult.is_tradeable && (
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+                  <KPICard label="Entry" value={formatPrice(liveResult.entry)} />
+                  <KPICard label="Stop Loss" value={formatPrice(liveResult.stop)} />
+                  <KPICard label="TP1" value={formatPrice(liveResult.tp1)} />
+                  <KPICard label="TP2" value={formatPrice(liveResult.tp2)} />
+                  <KPICard label="R:R" value={String(liveResult.rr ?? 0)} />
+                </div>
+              )}
+              {liveResult.reject_reason && (
+                <div className="rounded-lg border border-red/30 bg-red/5 px-4 py-2 text-[12px] text-red">
+                  {String(liveResult.reject_reason)}
+                </div>
+              )}
+              {liveResult.report_zh && (
+                <div className="rounded-lg border border-border px-4 py-3 text-[12px] text-text whitespace-pre-wrap max-h-[300px] overflow-y-auto">
+                  {String(liveResult.report_zh)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Paper Trading Status */}
+          {paperStatus && (
+            <div className="rounded-xl border border-border p-4">
+              <h3 className="text-[13px] font-semibold text-text mb-3">Paper Trading</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <KPICard label="Balance" value={`$${(paperStatus.balance as number ?? 10000).toFixed(2)}`} />
+                <KPICard label="Open Positions" value={String(paperStatus.open_positions ?? 0)} />
+                <KPICard label="Total Trades" value={String(paperStatus.total_trades ?? 0)} />
+              </div>
+              {paperStatus.positions && (paperStatus.positions as Array<Record<string, unknown>>).length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[12px]">
+                    <thead>
+                      <tr className="border-b border-border text-text-muted">
+                        <th className="text-left px-3 py-1.5 font-medium">Symbol</th>
+                        <th className="text-left px-3 py-1.5 font-medium">Side</th>
+                        <th className="text-right px-3 py-1.5 font-medium">Entry</th>
+                        <th className="text-right px-3 py-1.5 font-medium">Stop</th>
+                        <th className="text-right px-3 py-1.5 font-medium">TP1</th>
+                        <th className="text-right px-3 py-1.5 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(paperStatus.positions as Array<Record<string, unknown>>).map((pos, i) => (
+                        <tr key={i} className="border-b border-border/50">
+                          <td className="px-3 py-1.5 text-text">{String(pos.symbol ?? '')}</td>
+                          <td className="px-3 py-1.5">
+                            <span className={String(pos.direction).toLowerCase() === 'long' ? 'text-green' : 'text-red'}>
+                              {String(pos.direction)}
+                            </span>
+                          </td>
+                          <td className="px-3 py-1.5 text-right text-text">{formatPrice(pos.entry)}</td>
+                          <td className="px-3 py-1.5 text-right text-text">{formatPrice(pos.stop)}</td>
+                          <td className="px-3 py-1.5 text-right text-text">{formatPrice(pos.tp1)}</td>
+                          <td className="px-3 py-1.5 text-right text-text-muted">{String(pos.status)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {paperStatus.history && (paperStatus.history as Array<Record<string, unknown>>).length > 0 && (
+                <div className="mt-3">
+                  <h4 className="text-[12px] font-medium text-text mb-2">Recent Trades</h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[12px]">
+                      <thead>
+                        <tr className="border-b border-border text-text-muted">
+                          <th className="text-left px-3 py-1.5 font-medium">Symbol</th>
+                          <th className="text-left px-3 py-1.5 font-medium">Side</th>
+                          <th className="text-right px-3 py-1.5 font-medium">Entry</th>
+                          <th className="text-right px-3 py-1.5 font-medium">Exit</th>
+                          <th className="text-right px-3 py-1.5 font-medium">PnL</th>
+                          <th className="text-left px-3 py-1.5 font-medium">Reason</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(paperStatus.history as Array<Record<string, unknown>>).map((t, i) => (
+                          <tr key={i} className="border-b border-border/50">
+                            <td className="px-3 py-1.5 text-text">{String(t.symbol ?? '')}</td>
+                            <td className="px-3 py-1.5">
+                              <span className={String(t.direction).toLowerCase() === 'long' ? 'text-green' : 'text-red'}>
+                                {String(t.direction)}
+                              </span>
+                            </td>
+                            <td className="px-3 py-1.5 text-right text-text">{formatPrice(t.entry)}</td>
+                            <td className="px-3 py-1.5 text-right text-text">{formatPrice(t.exit_price)}</td>
+                            <td className={`px-3 py-1.5 text-right font-medium ${((t.pnl as number) ?? 0) >= 0 ? 'text-green' : 'text-red'}`}>
+                              {t.pnl != null ? ((t.pnl as number) >= 0 ? '+' : '') : ''}{(t.pnl as number)?.toFixed(2) ?? ''}
+                            </td>
+                            <td className="px-3 py-1.5 text-text-muted">{String(t.exit_reason ?? '')}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -218,11 +383,12 @@ export function TradingAIPage() {
 
 // ==================== KPI Card ====================
 
-function KPICard({ label, value }: { label: string; value: string }) {
+function KPICard({ label, value, highlight }: { label: string; value: string; highlight?: 'green' | 'red' }) {
+  const colorClass = highlight === 'green' ? 'text-green' : highlight === 'red' ? 'text-red' : 'text-text'
   return (
     <div className="rounded-xl border border-border p-4">
       <div className="text-[11px] text-text-muted uppercase tracking-wide">{label}</div>
-      <div className="text-[20px] font-bold text-text mt-1">{value}</div>
+      <div className={`text-[20px] font-bold mt-1 ${colorClass}`}>{value}</div>
     </div>
   )
 }
@@ -296,4 +462,10 @@ function formatPnL(value?: number): string {
   if (value == null) return '$0'
   const prefix = value >= 0 ? '+$' : '-$'
   return `${prefix}${Math.abs(value).toFixed(2)}`
+}
+
+function formatPrice(value?: unknown): string {
+  if (value == null || value === 'N/A') return 'N/A'
+  const n = Number(value)
+  return isNaN(n) ? 'N/A' : n.toFixed(2)
 }

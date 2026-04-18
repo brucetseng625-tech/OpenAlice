@@ -60,4 +60,16 @@ export const tradingAIApi = {
   async getEquityCurve(): Promise<{ success: boolean; data_points: number; curve: number[] }> {
     return fetchJson('/api/trading-ai/equity-curve')
   },
+
+  async runPipeline(): Promise<Record<string, unknown>> {
+    const res = await fetch('/api/trading-ai/run-pipeline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    })
+    return res.json()
+  },
+
+  async getPaperTrading(): Promise<Record<string, unknown>> {
+    return fetchJson('/api/trading-ai/paper-trading')
+  },
 }

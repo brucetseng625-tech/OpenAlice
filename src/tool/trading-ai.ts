@@ -6,11 +6,13 @@
  * - 查最後一次回測結果
  * - 查風控狀態
  * - 查權益曲線
+ * - 跑即時 5 Blocks 分析（MarketContext）
+ * - 查模擬交易狀態
  */
 
 import { tool } from 'ai'
 import { z } from 'zod'
-import { runBacktest, getTradingAIStatus, getBacktestTrades, getEquityCurve } from '@/domain/trading-ai/index.js'
+import { runBacktest, getTradingAIStatus, getBacktestTrades, getEquityCurve, runPipeline, getPaperTradingStatus } from '@/domain/trading-ai/index.js'
 
 export function createTradingAITools() {
   return {
@@ -98,6 +100,72 @@ Returns statistics, trades, and equity curve from the most recent run.`,
           success: curve.length > 0,
           data_points: curve.length,
           curve: curve.slice(-100), // Last 100 points
+        }
+      },
+    }),
+
+    runLiveAnalysis: tool({
+      description: `Run the live TradingAI 5 Blocks analysis pipeline.
+This runs real-time analysis using current market data:
+- Block 1: Sentiment (Fear & Greed, news, on-chain, coin selection)
+- Block 2: Technical (Wyckoff phase, SMC structure, indicators)
+- Block 3: Decision (Python MathEngine + AI risk auditor)
+- Block 4: Verdict (Chinese report)
+- Block 5: Execution (simulated order if tradeable)
+
+Returns full MarketContext with entry price, stop loss, take profit targets,
+risk/reward ratio, and tradeable verdict. Uses paper trading mode.`,
+      inputSchema: z.object({}),
+      execute: async () => {
+        try {
+          const ctx = await runPipeline()
+          return {
+            success: true,
+            timestamp: ctx.timestamp,
+            best_symbol: ctx.best_symbol,
+            direction: ctx.direction,
+            confidence: ctx.confidence,
+            btc_phase: ctx.btc_phase,
+            entry: ctx.entry,
+            stop: ctx.stop,
+            tp1: ctx.tp1,
+            tp2: ctx.tp2,
+            rr: ctx.rr,
+            is_tradeable: ctx.is_tradeable,
+            reject_reason: ctx.reject_reason,
+            phi4_verdict: ctx.phi4_verdict,
+            order_status: ctx.order_status,
+            report_zh: ctx.report_zh?.substring(0, 2000),
+          }
+        } catch (err) {
+          return {
+            success: false,
+            error: err instanceof Error ? err.message : String(err),
+          }
+        }
+      },
+    }),
+
+    getPaperTradingStatus: tool({
+      description: `Get the current paper trading status from Trading AI.
+Returns current balance, open positions, and trade history.`,
+      inputSchema: z.object({}),
+      execute: async () => {
+        try {
+          const pt = await getPaperTradingStatus()
+          return {
+            success: true,
+            balance: pt.balance,
+            open_positions: pt.positions.length,
+            positions: pt.positions,
+            total_trades: pt.history.length,
+            history: pt.history.slice(-10), // Last 10 trades
+          }
+        } catch (err) {
+          return {
+            success: false,
+            error: err instanceof Error ? err.message : String(err),
+          }
         }
       },
     }),
