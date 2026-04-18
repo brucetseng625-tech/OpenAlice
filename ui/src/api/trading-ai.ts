@@ -72,4 +72,12 @@ export const tradingAIApi = {
   async getPaperTrading(): Promise<Record<string, unknown>> {
     return fetchJson('/api/trading-ai/paper-trading')
   },
+
+  async paperTradingTick(): Promise<Record<string, unknown>> {
+    const res = await fetch('/api/trading-ai/paper-trading-tick', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    })
+    return res.json()
+  },
 }

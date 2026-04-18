@@ -104,6 +104,18 @@ export function TradingAIPage() {
     }
   }
 
+  const paperTick = async () => {
+    try {
+      const result = await api.tradingAI.paperTradingTick()
+      if (result.success) {
+        // Refresh paper trading status after tick
+        loadPaperStatus()
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   if (loading) {
     return <PageShell subtitle="Loading..." />
   }
@@ -127,6 +139,12 @@ export function TradingAIPage() {
               className="btn-secondary text-xs"
             >
               Paper Trading
+            </button>
+            <button
+              onClick={paperTick}
+              className="btn-secondary text-xs"
+            >
+              PT Tick
             </button>
             <button
               onClick={() => runBacktest('crypto')}

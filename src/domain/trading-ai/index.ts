@@ -8,9 +8,8 @@
  */
 
 import { spawn } from 'child_process'
-import { readFile } from 'fs/promises'
+import { readFile, writeFile } from 'fs/promises'
 import { resolve, dirname } from 'path'
-import { writeFileSync } from 'fs'
 
 const TRADING_AI_ROOT = resolve(process.cwd(), '..', 'TradingAI')
 
@@ -241,4 +240,33 @@ export async function getPaperTradingStatus(): Promise<{
   } catch {
     return { balance: 10000, positions: [], history: [] }
   }
+}
+
+/**
+ * Run a single paper trading tick — checks pending orders for fills,
+ * manages active positions (stop loss, take profit, trailing stop).
+ * Returns list of closed position events (for notifications).
+ */
+export async function paperTradingTick(): Promise<Array<{
+  symbol: string
+  direction: string
+  exit_price: number
+  pnl: number
+  reason: string
+}>> {
+  // Call the paper trading tick script
+  const stdout = await runPythonScript('core/paper_trading_tick.py', [])
+
+  const closed: Array<{ symbol: string; direction: string; exit_price: number; pnl: number; reason: string }> = []
+  for (const line of stdout.split('\n')) {
+    if (line.startsWith('__CLOSED__')) {
+      try {
+        closed.push(JSON.parse(line.slice(10)))
+      } catch {
+        // skip
+      }
+    }
+  }
+
+  return closed
 }

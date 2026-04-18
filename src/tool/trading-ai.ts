@@ -12,7 +12,7 @@
 
 import { tool } from 'ai'
 import { z } from 'zod'
-import { runBacktest, getTradingAIStatus, getBacktestTrades, getEquityCurve, runPipeline, getPaperTradingStatus } from '@/domain/trading-ai/index.js'
+import { runBacktest, getTradingAIStatus, getBacktestTrades, getEquityCurve, runPipeline, getPaperTradingStatus, paperTradingTick } from '@/domain/trading-ai/index.js'
 
 export function createTradingAITools() {
   return {
@@ -160,6 +160,28 @@ Returns current balance, open positions, and trade history.`,
             positions: pt.positions,
             total_trades: pt.history.length,
             history: pt.history.slice(-10), // Last 10 trades
+          }
+        } catch (err) {
+          return {
+            success: false,
+            error: err instanceof Error ? err.message : String(err),
+          }
+        }
+      },
+    }),
+
+    paperTradingTick: tool({
+      description: `Run a single paper trading tick. Checks pending orders for fills and manages active positions (stop loss, take profit, trailing stop). Returns any positions that were closed during this tick.`,
+      inputSchema: z.object({}),
+      execute: async () => {
+        try {
+          const closed = await paperTradingTick()
+          return {
+            success: true,
+            closed_positions: closed,
+            message: closed.length > 0
+              ? `${closed.length} position(s) closed`
+              : 'No positions closed',
           }
         } catch (err) {
           return {

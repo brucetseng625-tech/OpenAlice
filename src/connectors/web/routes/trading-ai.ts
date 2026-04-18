@@ -17,6 +17,7 @@ import {
   getEquityCurve,
   runPipeline,
   getPaperTradingStatus,
+  paperTradingTick,
 } from '../../../domain/trading-ai/index.js'
 
 export function createTradingAIRoutes() {
@@ -97,6 +98,19 @@ export function createTradingAIRoutes() {
     try {
       const pt = await getPaperTradingStatus()
       return c.json({ success: true, ...pt })
+    } catch (err) {
+      return c.json({
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      }, 500)
+    }
+  })
+
+  /** Trigger a single paper trading tick */
+  app.post('/paper-trading-tick', async (c) => {
+    try {
+      const closed = await paperTradingTick()
+      return c.json({ success: true, closed_positions: closed })
     } catch (err) {
       return c.json({
         success: false,
