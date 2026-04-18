@@ -11,8 +11,8 @@ export function TradingAIPage() {
   const [analyzing, setAnalyzing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [liveResult, setLiveResult] = useState<Record<string, unknown> | null>(null)
-  const [paperStatus, setPaperStatus] = useState<Record<string, unknown> | null>(null)
+  const [liveResult, setLiveResult] = useState<any | null>(null)
+  const [paperStatus, setPaperStatus] = useState<any | null>(null)
 
   const fetchData = useCallback(async () => {
     try {
@@ -207,7 +207,7 @@ export function TradingAIPage() {
             <div className="rounded-xl border border-border p-4">
               <h3 className="text-[13px] font-semibold text-text mb-3">Paper Trading</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                <KPICard label="Balance" value={`$${(paperStatus.balance as number ?? 10000).toFixed(2)}`} />
+                <KPICard label="Balance" value={`$${((paperStatus.balance as number) ?? 10000).toFixed(2)}`} />
                 <KPICard label="Open Positions" value={String(paperStatus.open_positions ?? 0)} />
                 <KPICard label="Total Trades" value={String(paperStatus.total_trades ?? 0)} />
               </div>
@@ -227,16 +227,16 @@ export function TradingAIPage() {
                     <tbody>
                       {(paperStatus.positions as Array<Record<string, unknown>>).map((pos, i) => (
                         <tr key={i} className="border-b border-border/50">
-                          <td className="px-3 py-1.5 text-text">{String(pos.symbol ?? '')}</td>
+                          <td className="px-3 py-1.5 text-text">{pos.symbol as string ?? ''}</td>
                           <td className="px-3 py-1.5">
                             <span className={String(pos.direction).toLowerCase() === 'long' ? 'text-green' : 'text-red'}>
-                              {String(pos.direction)}
+                              {pos.direction as string}
                             </span>
                           </td>
                           <td className="px-3 py-1.5 text-right text-text">{formatPrice(pos.entry)}</td>
                           <td className="px-3 py-1.5 text-right text-text">{formatPrice(pos.stop)}</td>
                           <td className="px-3 py-1.5 text-right text-text">{formatPrice(pos.tp1)}</td>
-                          <td className="px-3 py-1.5 text-right text-text-muted">{String(pos.status)}</td>
+                          <td className="px-3 py-1.5 text-right text-text-muted">{pos.status as string}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -261,10 +261,10 @@ export function TradingAIPage() {
                       <tbody>
                         {(paperStatus.history as Array<Record<string, unknown>>).map((t, i) => (
                           <tr key={i} className="border-b border-border/50">
-                            <td className="px-3 py-1.5 text-text">{String(t.symbol ?? '')}</td>
+                            <td className="px-3 py-1.5 text-text">{t.symbol as string ?? ''}</td>
                             <td className="px-3 py-1.5">
                               <span className={String(t.direction).toLowerCase() === 'long' ? 'text-green' : 'text-red'}>
-                                {String(t.direction)}
+                                {t.direction as string}
                               </span>
                             </td>
                             <td className="px-3 py-1.5 text-right text-text">{formatPrice(t.entry)}</td>
@@ -272,7 +272,7 @@ export function TradingAIPage() {
                             <td className={`px-3 py-1.5 text-right font-medium ${((t.pnl as number) ?? 0) >= 0 ? 'text-green' : 'text-red'}`}>
                               {t.pnl != null ? ((t.pnl as number) >= 0 ? '+' : '') : ''}{(t.pnl as number)?.toFixed(2) ?? ''}
                             </td>
-                            <td className="px-3 py-1.5 text-text-muted">{String(t.exit_reason ?? '')}</td>
+                            <td className="px-3 py-1.5 text-text-muted">{t.exit_reason as string ?? ''}</td>
                           </tr>
                         ))}
                       </tbody>
