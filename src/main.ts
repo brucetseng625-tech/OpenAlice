@@ -46,6 +46,7 @@ import { createTriggerListener } from './task/trigger/index.js'
 import { NewsCollectorStore, NewsCollector } from './domain/news/index.js'
 import { createNewsArchiveTools } from './tool/news.js'
 import { createTradingAITools } from './tool/trading-ai.js'
+import { runPipeline, paperTradingTick } from './domain/trading-ai/index.js'
 
 // ==================== Persistence paths ====================
 
@@ -302,6 +303,63 @@ async function main() {
   await cronEngine.start()
   console.log(`listener-registry: started (${listenerRegistry.list().length} listeners)`)
   console.log('cron: engine started')
+
+  // ==================== TradingAI Scheduled Analysis ====================
+
+  const tradingAIInterval = parseInt(process.env.TRADING_AI_INTERVAL_MS || '3600000', 10)
+  if (tradingAIInterval > 0) {
+    console.log(`trading-ai: scheduled analysis every ${tradingAIInterval / 60000}m`)
+    setInterval(async () => {
+      try {
+        const ctx = await runPipeline()
+        console.log(`trading-ai: analysis done — ${ctx.best_symbol} ${ctx.direction} tradeable=${ctx.is_tradeable}`)
+
+        if (ctx.is_tradeable) {
+          const msg = [
+            `📈 TradingAI Signal`,
+            `Symbol: ${ctx.best_symbol}`,
+            `Direction: ${ctx.direction}`,
+            `Confidence: ${ctx.confidence}`,
+            `Entry: ${ctx.entry}`,
+            `Stop: ${ctx.stop}`,
+            `TP1: ${ctx.tp1}`,
+            `R:R: ${ctx.rr?.toFixed(2)}`,
+            `Market State: ${ctx.market_state}`,
+            ``,
+            `✅ Tradeable — order placed (paper trading)`,
+          ].join('\n')
+          const result = await connectorCenter.broadcast(msg, { kind: 'notification', source: 'manual' })
+          console.log(`trading-ai: notification sent — ${result.length} channel(s)`)
+        } else {
+          console.log(`trading-ai: not tradeable — ${ctx.reject_reason}`)
+        }
+      } catch (err) {
+        console.error('trading-ai: scheduled analysis error:', err)
+      }
+    }, tradingAIInterval)
+  }
+
+  // Paper Trading Tick Loop — check positions every 60s
+  const ptTickInterval = parseInt(process.env.TRADING_AI_PT_TICK_MS || '60000', 10)
+  setInterval(async () => {
+    try {
+      const closed = await paperTradingTick()
+      for (const pos of closed) {
+        const emoji = pos.pnl >= 0 ? '✅' : '❌'
+        const msg = [
+          `${emoji} Paper Trade Closed`,
+          `Symbol: ${pos.symbol}`,
+          `Direction: ${pos.direction}`,
+          `Exit: ${pos.exit_price}`,
+          `PnL: ${pos.pnl >= 0 ? '+' : ''}$${pos.pnl.toFixed(2)}`,
+          `Reason: ${pos.reason}`,
+        ].join('\n')
+        await connectorCenter.broadcast(msg, { kind: 'notification', source: 'manual' })
+      }
+    } catch (err) {
+      console.error('trading-ai: paper trading tick error:', err)
+    }
+  }, ptTickInterval)
 
   // ==================== News Collector ====================
 
