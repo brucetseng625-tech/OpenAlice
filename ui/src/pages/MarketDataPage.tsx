@@ -18,10 +18,10 @@ const PROVIDER_OPTIONS: Record<string, string[]> = {
 }
 
 const ASSET_LABELS: Record<string, string> = {
-  equity: 'Equity',
-  crypto: 'Crypto',
-  currency: 'Currency',
-  commodity: 'Commodity',
+  equity: '股票',
+  crypto: '加密貨幣',
+  currency: '外匯',
+  commodity: '原物料',
 }
 
 const ALL_PROVIDERS = [
@@ -76,9 +76,9 @@ export function MarketDataPage() {
   if (!config) {
     return (
       <div className="flex flex-col flex-1 min-h-0">
-        <PageHeader title="Market Data" description="Structured financial data — prices, fundamentals, macro indicators." />
+        <PageHeader title="市場數據" description="結構化金融數據 — 價格、基本面、總經指標。" />
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-[13px] text-text-muted">Loading...</p>
+          <p className="text-[13px] text-text-muted">載入中...</p>
         </div>
       </div>
     )
@@ -107,8 +107,8 @@ export function MarketDataPage() {
   return (
     <div className="flex flex-col flex-1 min-h-0">
       <PageHeader
-        title="Market Data"
-        description="Structured financial data — prices, fundamentals, macro indicators."
+        title="市場數據"
+        description="結構化金融數據 — 價格、基本面、總經指標。"
         right={
           <div className="flex items-center gap-3">
             <SaveIndicator status={status} onRetry={retry} />
@@ -141,7 +141,7 @@ export function MarketDataPage() {
             onApiServerChange={(server) => updateConfigImmediate({ apiServer: server })}
           />
         </div>
-        {loadError && <p className="text-[13px] text-red mt-4 max-w-[880px] mx-auto">Failed to load configuration.</p>}
+        {loadError && <p className="text-[13px] text-red mt-4 max-w-[880px] mx-auto">無法載入設定。</p>}
       </div>
     </div>
   )
@@ -158,8 +158,8 @@ function AssetProvidersSection({
 }) {
   return (
     <ConfigSection
-      title="Asset Providers"
-      description="Select a data provider for each asset class. API keys are managed separately below."
+      title="資產數據來源"
+      description="為每類資產選擇數據來源。API 金鑰在下方單獨設定。"
     >
       <div className="space-y-3">
         {Object.entries(PROVIDER_OPTIONS).map(([asset, options]) => {
@@ -221,8 +221,8 @@ function ApiKeysSection({
 
   return (
     <ConfigSection
-      title="API Keys"
-      description="Manage credentials for data providers. Keys are used across all asset classes that route to the provider."
+      title="API 金鑰"
+      description="管理數據供應商的憑證。金鑰在所有資產類別中共用。"
     >
       <div className="space-y-4">
         {ALL_PROVIDERS.map(({ key, name, desc, hint }) => {
@@ -236,7 +236,7 @@ function ApiKeysSection({
                   type="password"
                   value={localKeys[key]}
                   onChange={(e) => handleKeyChange(key, e.target.value)}
-                  placeholder="Not configured"
+                  placeholder="尚未設定"
                 />
                 <TestButton
                   status={status}
@@ -277,17 +277,17 @@ function AdvancedSection({
         onClick={() => setExpanded(!expanded)}
         className="flex items-center gap-2 cursor-pointer text-left mb-1"
       >
-        <h3 className="text-[14px] font-semibold text-text">Advanced</h3>
+        <h3 className="text-[14px] font-semibold text-text">進階</h3>
         <span className="text-[11px] text-text-muted/50">{expanded ? '\u25BC' : '\u25B6'}</span>
       </button>
       {!expanded && (
-        <p className="text-[13px] text-text-muted/70">Data backend, embedded API server.</p>
+        <p className="text-[13px] text-text-muted/70">數據後端、嵌入式 API 伺服器。</p>
       )}
       {expanded && (
         <div className="space-y-6 mt-4">
           {/* Data Backend */}
           <div>
-            <p className="text-[13px] font-medium text-text mb-2">Data Backend</p>
+            <p className="text-[13px] font-medium text-text mb-2">數據後端</p>
             <div className="flex border border-border rounded-lg overflow-hidden w-fit mb-2">
               {(['typebb-sdk', 'openbb-api'] as const).map((opt, i) => (
                 <button
@@ -301,14 +301,14 @@ function AdvancedSection({
                       : 'text-text-muted hover:text-text'
                   }`}
                 >
-                  {opt === 'typebb-sdk' ? 'Built-in Engine (TypeBB)' : 'External OpenBB API'}
+                  {opt === 'typebb-sdk' ? '內建引擎 (TypeBB)' : '外部 OpenBB API'}
                 </button>
               ))}
             </div>
             <p className="text-[12px] text-text-muted/70">
               {backend === 'typebb-sdk'
-                ? 'Uses the built-in TypeBB engine. No external process required.'
-                : 'Connects to an external OpenBB-compatible HTTP endpoint.'}
+                ? '使用內建 TypeBB 引擎，不需要外部程式。'
+                : '連接外部的 OpenBB 相容 HTTP 端點。'}
             </p>
             {backend === 'openbb-api' && (
               <div className="mt-3">
@@ -326,13 +326,13 @@ function AdvancedSection({
 
           {/* Embedded API Server */}
           <div>
-            <p className="text-[13px] font-medium text-text mb-2">Embedded API Server</p>
+            <p className="text-[13px] font-medium text-text mb-2">嵌入式 API 伺服器</p>
             <p className="text-[12px] text-text-muted/70 mb-3">
-              Expose an OpenBB-compatible HTTP API from Alice. Other services can connect to query market data.
+              從 Alice 提供 OpenBB 相容的 HTTP API，其他服務可以連接查詢市場數據。
             </p>
             <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-[13px] text-text">Enable HTTP server</p>
+                <p className="text-[13px] text-text">啟用 HTTP 伺服器</p>
                 <p className="text-[12px] text-text-muted/60 mt-0.5">
                   Serves at <span className="font-mono text-[11px]">http://localhost:{apiServer.port}</span>
                 </p>
@@ -344,7 +344,7 @@ function AdvancedSection({
               />
             </div>
             {apiServer.enabled && (
-              <Field label="Port">
+              <Field label="通訊埠">
                 <input
                   className={`${inputClass} w-28`}
                   type="number"

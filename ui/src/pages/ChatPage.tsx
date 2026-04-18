@@ -142,7 +142,7 @@ export function ChatPage({ onSSEStatus }: ChatPageProps) {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
-            Alice
+            返回 Alice
           </button>
           <span className="text-sm text-text-muted/50">|</span>
           <span className="text-sm font-medium text-text">
@@ -153,7 +153,7 @@ export function ChatPage({ onSSEStatus }: ChatPageProps) {
             <button
               onClick={() => setEditingChannel(activeChannelConfig)}
               className="ml-auto w-6 h-6 rounded flex items-center justify-center text-text-muted/50 hover:text-text-muted hover:bg-bg-secondary transition-colors"
-              title="Channel settings"
+              title="頻道設定"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
@@ -196,7 +196,7 @@ export function ChatPage({ onSSEStatus }: ChatPageProps) {
                       <span
                         onClick={(e) => { e.stopPropagation(); setEditingChannel(ch); setPopoverOpen(false) }}
                         className="w-5 h-5 rounded flex items-center justify-center text-text-muted hover:text-text hover:bg-bg-secondary cursor-pointer"
-                        title="Settings"
+                        title="設定"
                       >
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
@@ -206,7 +206,7 @@ export function ChatPage({ onSSEStatus }: ChatPageProps) {
                       <span
                         onClick={(e) => handleDeleteChannel(ch.id, e)}
                         className="w-5 h-5 rounded flex items-center justify-center text-text-muted hover:text-red-400 hover:bg-red-400/10 cursor-pointer"
-                        title="Delete"
+                        title="刪除"
                       >
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                           <path d="M18 6L6 18M6 6l12 12" />
@@ -226,13 +226,13 @@ export function ChatPage({ onSSEStatus }: ChatPageProps) {
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <path d="M12 5v14M5 12h14" />
                     </svg>
-                    New channel
+                    新增頻道
                   </button>
                 ) : (
                   <div className="px-3 py-2 space-y-2">
                     <input
                       type="text"
-                      placeholder="id (e.g. research)"
+                      placeholder="ID（例如：research）"
                       value={newChannelId}
                       onChange={(e) => setNewChannelId(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, ''))}
                       className="w-full text-xs px-2 py-1.5 rounded border border-border bg-bg-secondary text-text placeholder:text-text-muted focus:outline-none focus:border-accent"
@@ -240,7 +240,7 @@ export function ChatPage({ onSSEStatus }: ChatPageProps) {
                     />
                     <input
                       type="text"
-                      placeholder="label"
+                      placeholder="名稱"
                       value={newChannelLabel}
                       onChange={(e) => setNewChannelLabel(e.target.value)}
                       className="w-full text-xs px-2 py-1.5 rounded border border-border bg-bg-secondary text-text placeholder:text-text-muted focus:outline-none focus:border-accent"
@@ -250,13 +250,13 @@ export function ChatPage({ onSSEStatus }: ChatPageProps) {
                         onClick={handleCreateChannel}
                         className="text-xs px-2.5 py-1 rounded bg-accent text-white hover:bg-accent/80 transition-colors"
                       >
-                        Create
+                        建立
                       </button>
                       <button
                         onClick={() => { setShowNewForm(false); setNewChannelError(''); setNewChannelId(''); setNewChannelLabel('') }}
                         className="text-xs px-2 py-1 rounded text-text-muted hover:text-text"
                       >
-                        Cancel
+                        取消
                       </button>
                     </div>
                     {newChannelError && <p className="text-xs text-red-400">{newChannelError}</p>}
@@ -280,7 +280,7 @@ export function ChatPage({ onSSEStatus }: ChatPageProps) {
             <div className="text-center">
               {activeChannel === 'default' ? (
                 <>
-                  <h2 className="text-lg font-semibold text-text mb-1">Hi, I'm Alice</h2>
+                  <h2 className="text-lg font-semibold text-text mb-1">你好，我是 Alice</h2>
                   <p className="text-sm text-text-muted">Send a message to start chatting</p>
                 </>
               ) : (

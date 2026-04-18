@@ -177,7 +177,7 @@ export function PushApprovalPanel() {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-text-muted">
           <path d="M12 20V10M18 20V4M6 20v-4" />
         </svg>
-        <h3 className="text-sm font-semibold text-text">Trading</h3>
+        <h3 className="text-sm font-semibold text-text">交易</h3>
         {hasPending && (
           <span className="ml-auto w-2 h-2 rounded-full bg-accent animate-pulse" title="Pending operations" />
         )}
@@ -197,7 +197,7 @@ export function PushApprovalPanel() {
                 </div>
 
                 <div className="text-xs text-yellow-400/80 font-medium px-2 py-1.5 rounded bg-yellow-400/5 border border-yellow-400/20">
-                  Staged — waiting for AI to commit
+                  已暫存 — 等待 AI 提交
                 </div>
 
                 <div className="space-y-0.5">
@@ -254,19 +254,19 @@ export function PushApprovalPanel() {
                 {/* Inline confirm or action buttons */}
                 {confirmingPush === account.id ? (
                   <div className="flex items-center gap-2 text-xs">
-                    <span className="text-text-muted">Execute {status.staged.length} op{status.staged.length > 1 ? 's' : ''}?</span>
+                    <span className="text-text-muted">執行 {status.staged.length} 個操作{status.staged.length > 1 ? '' : ''}？</span>
                     <button
                       onClick={() => handlePush(account.id)}
                       disabled={pushing !== null}
                       className="btn-primary-sm"
                     >
-                      {pushing === account.id ? '...' : 'Confirm'}
+                      {pushing === account.id ? '...' : '確認'}
                     </button>
                     <button
                       onClick={() => setConfirmingPush(null)}
                       className="px-2 py-1 rounded text-text-muted hover:text-text transition-colors"
                     >
-                      Cancel
+                      取消
                     </button>
                   </div>
                 ) : (
@@ -276,14 +276,14 @@ export function PushApprovalPanel() {
                       disabled={pushing !== null || rejecting !== null}
                       className="flex-1 btn-primary-sm"
                     >
-                      Approve & Push
+                      批准並推送
                     </button>
                     <button
                       onClick={() => handleReject(account.id)}
                       disabled={pushing !== null || rejecting !== null}
                       className="text-xs px-3 py-1.5 rounded font-medium border border-border text-text-muted hover:text-red-400 hover:border-red-400/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      {rejecting === account.id ? '...' : 'Reject'}
+                      {rejecting === account.id ? '...' : '拒絕'}
                     </button>
                   </div>
                 )}
@@ -293,23 +293,23 @@ export function PushApprovalPanel() {
             {/* Last push result feedback */}
             {lastResult && (
               <div className="space-y-1 pt-2 border-t border-border">
-                <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Last push</div>
+                <div className="text-[11px] font-medium text-text-muted uppercase tracking-wider">上次推送</div>
                 <div className="text-xs text-text">
                   {lastResult.data.submitted.length > 0 && (
-                    <span className="text-green-400">{lastResult.data.submitted.length} submitted</span>
+                    <span className="text-green-400">{lastResult.data.submitted.length} 已提交</span>
                   )}
                   {lastResult.data.rejected.length > 0 && (
                     <>
-                      {lastResult.data.submitted.length > 0 && ', '}
-                      <span className="text-red-400">{lastResult.data.rejected.length} rejected</span>
+                      {lastResult.data.submitted.length > 0 && '，'}
+                      <span className="text-red-400">{lastResult.data.rejected.length} 已拒絕</span>
                     </>
                   )}
                 </div>
                 {lastResult.data.rejected.map((r, i) => (
-                  <div key={i} className="text-xs text-red-400/80 px-2">{r.error || 'Unknown error'}</div>
+                  <div key={i} className="text-xs text-red-400/80 px-2">{r.error || '未知錯誤'}</div>
                 ))}
                 <button onClick={() => setLastResult(null)} className="text-[11px] text-text-muted hover:text-text">
-                  Dismiss
+                  關閉
                 </button>
               </div>
             )}
@@ -317,13 +317,13 @@ export function PushApprovalPanel() {
             {error && (
               <div className="text-xs text-red-400 pt-2 border-t border-border">
                 {error}
-                <button onClick={() => setError(null)} className="ml-2 text-text-muted hover:text-text">Dismiss</button>
+                <button onClick={() => setError(null)} className="ml-2 text-text-muted hover:text-text">關閉</button>
               </div>
             )}
           </div>
         ) : !hasStaged ? (
           <div className="px-3 py-4 text-xs text-text-muted text-center">
-            No pending operations
+            無待處理操作
           </div>
         ) : null}
 
@@ -331,7 +331,7 @@ export function PushApprovalPanel() {
         {hasHistory && (
           <div className="border-t border-border">
             <div className="px-3 py-2">
-              <div className="text-[11px] text-text-muted font-medium uppercase tracking-wider">History</div>
+              <div className="text-[11px] text-text-muted font-medium uppercase tracking-wider">歷史記錄</div>
             </div>
             <div className="px-3 pb-3 space-y-3">
               {history.map(({ accountId, label, commits }) => (

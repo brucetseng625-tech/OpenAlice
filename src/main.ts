@@ -45,6 +45,7 @@ import { createHeartbeat } from './task/heartbeat/index.js'
 import { createTriggerListener } from './task/trigger/index.js'
 import { NewsCollectorStore, NewsCollector } from './domain/news/index.js'
 import { createNewsArchiveTools } from './tool/news.js'
+import { createTradingAITools } from './tool/trading-ai.js'
 
 // ==================== Persistence paths ====================
 
@@ -222,6 +223,7 @@ async function main() {
     toolCenter.register(createNewsArchiveTools(newsStore), 'news')
   }
   toolCenter.register(createAnalysisTools(equityClient, cryptoClient, currencyClient, commodityClient), 'analysis')
+  toolCenter.register(createTradingAITools(), 'trading-ai')
 
   console.log(`tool-center: ${toolCenter.list().length} tools registered`)
 

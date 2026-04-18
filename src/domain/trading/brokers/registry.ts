@@ -11,6 +11,7 @@ import type { AccountConfig } from '../../../core/config.js'
 import { CcxtBroker } from './ccxt/CcxtBroker.js'
 import { AlpacaBroker } from './alpaca/AlpacaBroker.js'
 import { IbkrBroker } from './ibkr/IbkrBroker.js'
+import { MockBroker } from './mock/MockBroker.js'
 
 // ==================== Subtitle field descriptor ====================
 
@@ -112,5 +113,16 @@ Before connecting:
 4. Add 127.0.0.1 to "Trusted IPs" if running locally
 
 Paper trading requires a separate paper account login in TWS.`,
+  },
+  mock: {
+    configSchema: MockBroker.configSchema,
+    configFields: MockBroker.configFields,
+    fromConfig: MockBroker.fromConfig,
+    name: 'Mock (模擬帳戶)',
+    description: '用於展示與測試的模擬帳戶，不連接真實交易所。',
+    badge: 'MO',
+    badgeColor: 'text-text-muted',
+    subtitleFields: [],
+    guardCategory: 'crypto',
   },
 }

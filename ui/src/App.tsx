@@ -14,10 +14,11 @@ import { NewsCollectorPage } from './pages/NewsCollectorPage'
 import { TradingPage } from './pages/TradingPage'
 import { ConnectorsPage } from './pages/ConnectorsPage'
 import { DevPage } from './pages/DevPage'
+import { TradingAIPage } from './pages/TradingAIPage'
 
 export type Page =
   | 'chat' | 'diary' | 'portfolio' | 'news' | 'automation' | 'logs' | 'market-data' | 'news-collector' | 'connectors'
-  | 'trading'
+  | 'trading' | 'trading-ai'
   | 'ai-provider' | 'settings' | 'dev'
 
 /** Page type → URL path mapping. Chat is the root, everything else maps to /slug. */
@@ -32,6 +33,7 @@ export const ROUTES: Record<Page, string> = {
   'news': '/news',
   'connectors': '/connectors',
   'trading': '/trading',
+  'trading-ai': '/trading-ai',
   'ai-provider': '/ai-provider',
   'settings': '/settings',
   'dev': '/dev',
@@ -82,6 +84,7 @@ export function App() {
             <Route path="/connectors" element={<ConnectorsPage />} />
             <Route path="/tools" element={<Navigate to="/settings" replace />} />
             <Route path="/trading" element={<TradingPage />} />
+            <Route path="/trading-ai" element={<TradingAIPage />} />
             <Route path="/ai-provider" element={<AIProviderPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/dev" element={<DevPage />} />

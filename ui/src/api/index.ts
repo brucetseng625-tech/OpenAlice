@@ -17,6 +17,7 @@ import { personaApi } from './persona'
 import { newsApi } from './news'
 import { diaryApi } from './diary'
 import { topologyApi } from './topology'
+import { tradingAIApi } from './trading-ai'
 export const api = {
   chat: chatApi,
   config: configApi,
@@ -33,6 +34,7 @@ export const api = {
   news: newsApi,
   diary: diaryApi,
   topology: topologyApi,
+  tradingAI: tradingAIApi,
 }
 
 // Re-export all types for convenience

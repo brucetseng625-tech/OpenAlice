@@ -11,6 +11,7 @@
 import { z } from 'zod'
 import Decimal from 'decimal.js'
 import { Contract, ContractDescription, ContractDetails, Order, OrderState, UNSET_DECIMAL, UNSET_DOUBLE } from '@traderalice/ibkr'
+import { resolve } from 'path'
 import type {
   IBroker,
   AccountCapabilities,
@@ -31,6 +32,26 @@ interface InternalPosition {
   side: 'long' | 'short'
   quantity: Decimal
   avgCost: Decimal
+}
+
+// ==================== Seed data ====================
+
+interface MockSeedPosition {
+  aliceId: string
+  symbol: string
+  secType?: string
+  currency?: string
+  side: 'long' | 'short'
+  quantity: number
+  avgCost: number
+  marketPrice?: number
+}
+
+interface MockSeed {
+  positions?: MockSeedPosition[]
+  account?: Partial<AccountInfo>
+  cash?: number
+  realizedPnL?: number
 }
 
 interface InternalOrder {
@@ -198,7 +219,71 @@ export class MockBroker implements IBroker {
 
   // ---- Lifecycle ----
 
-  async init(): Promise<void> { this._record('init', []); this._checkFail('init') }
+  async init(): Promise<void> {
+    this._record('init', [])
+    this._checkFail('init')
+    // Load seed data if available
+    await this._loadSeedIfNeeded()
+  }
+
+  private async _loadSeedIfNeeded(): Promise<void> {
+    try {
+      const { readFile, existsSync } = await import('fs/promises')
+      const seedPath = resolve('data/mock-seed.json')
+      // Check if file exists
+      try {
+        await readFile(seedPath, 'utf-8')
+      } catch {
+        return // No seed file
+      }
+
+      const raw = JSON.parse(await readFile(seedPath, 'utf-8'))
+      const seed: MockSeed = raw as MockSeed
+
+      // Seed positions
+      if (seed.positions?.length > 0) {
+        for (const p of seed.positions) {
+          const c = makeContract({
+            aliceId: p.aliceId || `mock|${p.symbol}`,
+            symbol: p.symbol,
+            secType: p.secType || 'CRYPTO',
+            exchange: 'MOCK',
+            currency: p.currency || 'USD',
+          })
+          this._positions.set(p.aliceId || `mock|${p.symbol}`, {
+            contract: c,
+            side: p.side as 'long' | 'short',
+            quantity: new Decimal(p.quantity),
+            avgCost: new Decimal(p.avgCost),
+          })
+          // Set quote
+          if (p.marketPrice != null) {
+            this._quotes.set(p.symbol, p.marketPrice)
+          }
+        }
+      }
+
+      // Seed account info
+      if (seed.account) {
+        this._accountOverride = {
+          netLiquidation: 0, totalCashValue: 0, unrealizedPnL: 0, realizedPnL: 0,
+          ...seed.account,
+        }
+      }
+
+      // Seed cash
+      if (seed.cash != null) {
+        this._cash = new Decimal(seed.cash)
+      }
+
+      // Seed realized PnL
+      if (seed.realizedPnL != null) {
+        this._realizedPnL = new Decimal(seed.realizedPnL)
+      }
+    } catch {
+      // Ignore seed file errors
+    }
+  }
   async close(): Promise<void> { this._record('close', []) }
 
   // ---- Contract search (stub) ----

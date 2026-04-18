@@ -1,4 +1,5 @@
 import { useRef, useCallback, useState, type KeyboardEvent, type ChangeEvent } from 'react'
+import { useTranslation } from '../i18n'
 
 interface ChatInputProps {
   disabled: boolean
@@ -8,6 +9,7 @@ interface ChatInputProps {
 export function ChatInput({ disabled, onSend }: ChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [hasText, setHasText] = useState(false)
+  const t = useTranslation()
 
   const handleSend = useCallback(() => {
     const text = textareaRef.current?.value.trim()
@@ -44,7 +46,7 @@ export function ChatInput({ disabled, onSend }: ChatInputProps) {
           ref={textareaRef}
           disabled={disabled}
           className="flex-1 bg-transparent text-text border-none outline-none font-sans text-[15px] leading-relaxed resize-none max-h-[200px] placeholder:text-text-muted/70 disabled:opacity-50 disabled:cursor-not-allowed py-0.5"
-          placeholder={disabled ? 'Waiting for response...' : 'Message Alice...'}
+          placeholder={disabled ? '等待回應中...' : '輸入訊息...'}
           rows={1}
           onKeyDown={handleKeyDown}
           onChange={handleInput}
@@ -59,7 +61,7 @@ export function ChatInput({ disabled, onSend }: ChatInputProps) {
                 ? 'bg-accent text-white shadow-sm hover:bg-accent/85 scale-100'
                 : 'bg-bg-tertiary text-text-muted/40 cursor-not-allowed scale-95'
           }`}
-          aria-label="Send message"
+          aria-label="發送訊息"
         >
           {disabled ? (
             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -72,7 +74,7 @@ export function ChatInput({ disabled, onSend }: ChatInputProps) {
       </div>
       <div className="text-center mt-1.5 max-w-[800px] mx-auto">
         <span className="text-[11px] text-text-muted/40">
-          Enter to send, Shift + Enter for new line
+          Enter 發送，Shift + Enter 換行
         </span>
       </div>
     </div>

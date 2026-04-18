@@ -59,7 +59,7 @@ export function EquityCurve({
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-[13px] font-semibold text-text-muted uppercase tracking-wide">
-          Equity Curve
+          權益曲線
         </h3>
         <div className="flex gap-1">
           {RANGES.map(r => (
@@ -102,7 +102,7 @@ export function EquityCurve({
                 : 'border-border text-text-muted hover:text-text hover:bg-bg-tertiary'
             }`}
           >
-            All
+            全部
           </button>
         </div>
       )}

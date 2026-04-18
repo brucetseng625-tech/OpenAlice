@@ -62,7 +62,7 @@ export function ChannelConfigModal({ channel, onClose, onSaved }: ChannelConfigM
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="text-[15px] font-semibold text-text">Configure Channel</h2>
+          <h2 className="text-[15px] font-semibold text-text">頻道設定</h2>
           <button onClick={onClose} className="text-text-muted hover:text-text transition-colors">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
           </button>
@@ -72,7 +72,7 @@ export function ChannelConfigModal({ channel, onClose, onSaved }: ChannelConfigM
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {/* Label */}
           <div>
-            <label className="block text-xs font-medium text-text-muted mb-1">Channel Name</label>
+            <label className="block text-xs font-medium text-text-muted mb-1">頻道名稱</label>
             <input
               value={label}
               onChange={(e) => setLabel(e.target.value)}
@@ -82,11 +82,11 @@ export function ChannelConfigModal({ channel, onClose, onSaved }: ChannelConfigM
 
           {/* System Prompt */}
           <div>
-            <label className="block text-xs font-medium text-text-muted mb-1">System Prompt</label>
+            <label className="block text-xs font-medium text-text-muted mb-1">系統提示詞</label>
             <textarea
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
-              placeholder="Custom instructions for this channel..."
+              placeholder="自訂此頻道的指示..."
               rows={4}
               className={`${inputClass} resize-y`}
             />
@@ -94,13 +94,13 @@ export function ChannelConfigModal({ channel, onClose, onSaved }: ChannelConfigM
 
           {/* AI Profile */}
           <div>
-            <label className="block text-xs font-medium text-text-muted mb-1">AI Provider Profile</label>
+            <label className="block text-xs font-medium text-text-muted mb-1">AI 供應商設定檔</label>
             <select
               value={profile}
               onChange={(e) => setProfile(e.target.value)}
               className={inputClass}
             >
-              <option value="">Default (global active)</option>
+              <option value="">預設（使用全域設定）</option>
               {Object.entries(profiles).map(([slug, p]) => (
                 <option key={slug} value={slug}>{slug} ({p.model})</option>
               ))}
@@ -110,13 +110,13 @@ export function ChannelConfigModal({ channel, onClose, onSaved }: ChannelConfigM
           {/* Disabled Tools */}
           <div>
             <label className="block text-xs font-medium text-text-muted mb-2">
-              Disabled Tools
+              停用工具
               {disabledTools.size > 0 && (
-                <span className="ml-1 text-text-muted/60">({disabledTools.size} disabled)</span>
+                <span className="ml-1 text-text-muted/60">（已停用 {disabledTools.size} 個）</span>
               )}
             </label>
             {tools.length === 0 ? (
-              <p className="text-[11px] text-text-muted">Loading tools...</p>
+              <p className="text-[11px] text-text-muted">載入中...</p>
             ) : (
               <div className="max-h-[200px] overflow-y-auto border border-border rounded-lg">
                 {tools.map((tool) => (
@@ -144,9 +144,9 @@ export function ChannelConfigModal({ channel, onClose, onSaved }: ChannelConfigM
         <div className="flex items-center justify-between p-4 border-t border-border">
           {error && <p className="text-[12px] text-red flex-1">{error}</p>}
           <div className="flex gap-2 ml-auto">
-            <button onClick={onClose} className="btn-secondary">Cancel</button>
+            <button onClick={onClose} className="btn-secondary">取消</button>
             <button onClick={handleSave} disabled={saving} className="btn-primary">
-              {saving ? 'Saving...' : 'Save'}
+              {saving ? '儲存中...' : '儲存'}
             </button>
           </div>
         </div>

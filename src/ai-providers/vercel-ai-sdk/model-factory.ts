@@ -29,8 +29,12 @@ export async function createModelFromProfile(profile: ResolvedProfile): Promise<
     }
     case 'openai': {
       const { createOpenAI } = await import('@ai-sdk/openai')
-      const client = createOpenAI({ apiKey: apiKey || undefined, baseURL: url || undefined })
-      return { model: client(m), key }
+      const client = createOpenAI({
+        apiKey: apiKey || undefined,
+        baseURL: url || undefined,
+      })
+      // Use chat completions API instead of responses API for compatibility
+      return { model: client.chat(m), key }
     }
     case 'google': {
       const { createGoogleGenerativeAI } = await import('@ai-sdk/google')

@@ -58,8 +58,8 @@ export function ConnectorsPage() {
   return (
     <div className="flex flex-col flex-1 min-h-0">
       <PageHeader
-        title="Connectors"
-        description="Service ports and external integrations. Changes require a restart."
+        title="連接器"
+        description="服務端口與外部整合。變更需要重新啟動。"
         right={<SaveIndicator status={status} onRetry={retry} />}
       />
 
@@ -71,28 +71,28 @@ export function ConnectorsPage() {
             {pendingChatId !== null && (
               <div className="mb-6 flex items-center justify-between gap-4 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-[13px]">
                 <span>
-                  Authorize Telegram chat <code className="font-mono font-semibold">{pendingChatId}</code>?
+                  授權 Telegram 聊天 <code className="font-mono font-semibold">{pendingChatId}</code>？
                 </span>
                 <span className="flex gap-2 shrink-0">
                   <button
                     className="rounded-md bg-blue-600 px-3 py-1 text-white hover:bg-blue-500"
                     onClick={handleAuthorize}
                   >
-                    Authorize
+                    授權
                   </button>
                   <button
                     className="rounded-md border border-border px-3 py-1 hover:bg-bg-2"
                     onClick={() => setPendingChatId(null)}
                   >
-                    Dismiss
+                    略過
                   </button>
                 </span>
               </div>
             )}
             {/* Connector selector cards */}
             <ConfigSection
-              title="Active Connectors"
-              description="Select which connectors to enable. Web UI and MCP Server are always active."
+              title="啟用的連接器"
+              description="選擇要啟用的連接器。Web UI 與 MCP 伺服器始終啟用。"
             >
               <SDKSelector
                 options={CONNECTOR_OPTIONS}
@@ -104,7 +104,7 @@ export function ConnectorsPage() {
             {/* Web UI config — always shown */}
             <ConfigSection
               title="Web UI"
-              description="Browser-based chat and configuration interface."
+              description="瀏覽器聊天與設定介面。"
             >
               <Field label="Port">
                 <input
@@ -119,7 +119,7 @@ export function ConnectorsPage() {
             {/* MCP Server config — always shown */}
             <ConfigSection
               title="MCP Server"
-              description="Tool bridge for Claude Code provider and external AI agents."
+              description="Claude Code 供應商與外部 AI 代理的工具橋接。"
             >
               <Field label="Port">
                 <input
@@ -134,8 +134,8 @@ export function ConnectorsPage() {
             {/* MCP Ask config */}
             {config.mcpAsk.enabled && (
               <ConfigSection
-                title="MCP Ask"
-                description="Multi-turn conversation endpoint for external agents."
+                title="MCP 問答"
+                description="外部代理的多輪對話端點。"
               >
                 <Field label="Port">
                   <input
@@ -156,7 +156,7 @@ export function ConnectorsPage() {
             {config.telegram.enabled && (
               <ConfigSection
                 title="Telegram"
-                description="Create a bot via @BotFather, paste the token below, and add your chat ID."
+                description="透過 @BotFather 建立機器人，貼上 Token，並加入你的 Chat ID。"
               >
                 <Field label="Bot Token">
                   <input
@@ -183,7 +183,7 @@ export function ConnectorsPage() {
                     placeholder="my_bot"
                   />
                 </Field>
-                <Field label="Allowed Chat IDs">
+                <Field label="允許的 Chat IDs">
                   <input
                     className={inputClass}
                     value={config.telegram.chatIds.join(', ')}
@@ -207,7 +207,7 @@ export function ConnectorsPage() {
             )}
           </div>
         )}
-        {loadError && <p className="text-[13px] text-red">Failed to load configuration.</p>}
+        {loadError && <p className="text-[13px] text-red">無法載入設定。</p>}
       </div>
     </div>
   )
