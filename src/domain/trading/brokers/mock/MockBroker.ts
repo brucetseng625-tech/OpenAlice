@@ -266,7 +266,8 @@ export class MockBroker implements IBroker {
       // Seed account info
       if (seed.account) {
         this._accountOverride = {
-          netLiquidation: 0, totalCashValue: 0, unrealizedPnL: 0, realizedPnL: 0,
+          baseCurrency: 'USD',
+          netLiquidation: '0', totalCashValue: '0', unrealizedPnL: '0', realizedPnL: '0',
           ...seed.account,
         }
       }
