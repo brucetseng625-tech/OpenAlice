@@ -19,6 +19,7 @@ export interface BacktestResult {
   timeframe: string
   stats: Record<string, unknown>
   trades: Array<Record<string, unknown>>
+  equity_curve?: number[]
   timestamp: string
 }
 

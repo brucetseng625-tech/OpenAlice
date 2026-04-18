@@ -228,7 +228,7 @@ export class MockBroker implements IBroker {
 
   private async _loadSeedIfNeeded(): Promise<void> {
     try {
-      const { readFile, existsSync } = await import('fs/promises')
+      const { readFile } = await import('fs/promises')
       const seedPath = resolve('data/mock-seed.json')
       // Check if file exists
       try {
@@ -241,8 +241,8 @@ export class MockBroker implements IBroker {
       const seed: MockSeed = raw as MockSeed
 
       // Seed positions
-      if (seed.positions?.length > 0) {
-        for (const p of seed.positions) {
+      if ((seed.positions?.length ?? 0) > 0) {
+        for (const p of seed.positions ?? []) {
           const c = makeContract({
             aliceId: p.aliceId || `mock|${p.symbol}`,
             symbol: p.symbol,
